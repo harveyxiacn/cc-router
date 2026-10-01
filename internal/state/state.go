@@ -18,6 +18,8 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/harveyxiacn/cc-router/internal/localdata"
 )
 
 const SchemaVersion = 1
@@ -86,7 +88,7 @@ func (s *Store) sessionLock(name string) (func(), error) {
 	if err := regular(root, path); err != nil {
 		return nil, err
 	}
-	f, err := root.OpenFile(path, os.O_CREATE|os.O_RDWR, 0600)
+	f, err := localdata.OpenLockFile(root, path)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +206,7 @@ func (s *Store) locked(fn func(*os.Root) error) error {
 	if err := regular(root, "state.lock"); err != nil {
 		return err
 	}
-	f, err := root.OpenFile("state.lock", os.O_CREATE|os.O_RDWR, 0600)
+	f, err := localdata.OpenLockFile(root, "state.lock")
 	if err != nil {
 		return err
 	}

@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/harveyxiacn/cc-router/internal/localdata"
 )
 
 var ErrBusy = errors.New("another application session or update is using this installation")
@@ -27,7 +29,7 @@ func AcquireLease(directory string, exclusive bool) (func(), error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
-	f, err := root.OpenFile(name, os.O_CREATE|os.O_RDWR, 0600)
+	f, err := localdata.OpenLockFile(root, name)
 	if err != nil && !exclusive {
 		f, err = root.Open(name)
 	}

@@ -25,6 +25,9 @@ jobs:
         run: go test -count=1 ./...
       - name: Vet
         run: go vet ./...
+      - name: macOS concurrent lock creation regression
+        if: runner.os == 'macOS'
+        run: go test -count=20 -run 'TestConcurrentFirstLockCreation|TestConcurrentTransactionsDoNotLoseUpdates|TestCrossProcessTransactions' ./internal/localdata ./internal/state
       - name: Race detector
         if: runner.os == 'Linux'
         run: go test -race ./...

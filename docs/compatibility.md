@@ -33,6 +33,11 @@ This is an alpha, not completion of the original plan's 1.0 acceptance checklist
 
 ## Before 1.0
 
+macOS concurrent first lock creation uses exclusive-create followed by an ordinary
+open when the lock already exists, avoiding the Darwin `O_CREAT` race documented
+in [Go issue 81246](https://github.com/golang/go/issues/81246). CI repeats the
+concurrent thread/process regressions on macOS; lock files remain persistent.
+
 1. Run two real subscriptions on each OS; compare official `/status` email/billing and verify restart isolation.
 2. Test terminal signals, resize, Unicode/space paths, cancellation, and descendant/background process lifecycle in actual shells.
 3. Test quota warnings with official statusline output; verify staleness and model-specific limits, then perform a manual handoff in a real project.
