@@ -333,6 +333,19 @@ func (s *Service) Launch(name, project, mode string, reviewed bool) error {
 	if err := validCLI(s.CLIPath); err != nil {
 		return err
 	}
+	var officialArgs []string
+	if mode == "login" {
+		officialArgs = []string{"auth", "login", "--claudeai"}
+	}
+	findings, err := claude.Check(s.Store.ProfileDir(a), project, officialArgs, os.Environ())
+	if err != nil {
+		return err
+	}
+	for _, f := range findings {
+		if f.Blocking {
+			return fmt.Errorf("launch blocked: %s / %s: %s", f.Source, f.Key, f.Message)
+		}
+	}
 	// Probe locks only. The launched CLI acquires and holds them for its entire run;
 	// keeping them here until after terminal startup would race the child itself.
 	unlock, err := s.Store.LockAccount(a.ID)

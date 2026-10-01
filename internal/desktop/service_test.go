@@ -120,6 +120,10 @@ func TestDesktopLaunchUsesValidatedNamesAndDirectory(t *testing.T) {
 	if err := s.Launch("a", dir, "shell", true); err == nil {
 		t.Fatal("unrestricted mode")
 	}
+	t.Setenv("ANTHROPIC_API_KEY", "must-not-display")
+	if err := s.Launch("a", dir, "run", false); err == nil || called || strings.Contains(err.Error(), "must-not-display") {
+		t.Fatalf("conflicting authentication opened a terminal or leaked: %v", err)
+	}
 }
 
 func TestTerminalCommandQuoting(t *testing.T) {

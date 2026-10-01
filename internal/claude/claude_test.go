@@ -179,7 +179,17 @@ func TestRunPreservesArgumentEnvironmentDirectoryAndExitCode(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
 		t.Fatal(err)
 	}
-	if fmt.Sprint(result.Args) != fmt.Sprint(args) || result.Cwd != cwd || result.Profile != profile || result.Anthropic != filepath.Join(profile, ".anthropic") || result.Input != "input data" {
+	// macOS reports /private/var for temporary directories supplied as /var.
+	// Compare directory identity without weakening argument/environment checks.
+	wantDir, err := os.Stat(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotDir, err := os.Stat(result.Cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(result.Args) != fmt.Sprint(args) || !os.SameFile(gotDir, wantDir) || result.Profile != profile || result.Anthropic != filepath.Join(profile, ".anthropic") || result.Input != "input data" {
 		t.Fatalf("bad child transport: %+v", result)
 	}
 }
