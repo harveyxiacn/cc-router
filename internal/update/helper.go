@@ -279,6 +279,15 @@ func (p *plan) spawn(mode string) error {
 		case <-ticker.C:
 			var ready helperReady
 			if jsonRead(root, "helper-ready.json", &ready) == nil && ready.Nonce == p.Nonce && ready.PID == command.Process.Pid && ready.Parent == os.Getpid() && ready.Mode == mode {
+				select {
+				case <-done:
+					return errors.New("update helper exited during readiness confirmation")
+				default:
+				}
+				alive, err := processAlive(command.Process.Pid)
+				if err != nil || !alive {
+					return errors.New("update helper is no longer running")
+				}
 				return nil
 			}
 		}
