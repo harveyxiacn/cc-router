@@ -106,3 +106,24 @@ func TestHandoffPreservesAndExtendsExistingIgnoreFile(t *testing.T) {
 		t.Fatal("local ignore does not safely cover handoff")
 	}
 }
+
+func TestHandoffDoesNotFollowGitExcludeLink(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".git", "info"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	secret := filepath.Join(dir, ".env")
+	if err := os.WriteFile(secret, []byte("SENSITIVE_UNCHANGED"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(dir, ".git", "info", "exclude")); err != nil {
+		t.Skip("symlink creation unavailable")
+	}
+	if _, _, err := WriteHandoff(dir); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(secret)
+	if string(b) != "SENSITIVE_UNCHANGED" {
+		t.Fatal("modified symlink target")
+	}
+}

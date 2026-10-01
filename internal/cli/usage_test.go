@@ -3,6 +3,9 @@ package cli
 import (
 	"bytes"
 	"fmt"
+	"github.com/harveyxiacn/cc-router/internal/usage"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +24,25 @@ func TestUsageThresholdUsesEitherWindow(t *testing.T) {
 		if err != nil || code != 0 || !strings.Contains(out.String(), tc.want) || strings.Contains(out.String(), "DO_NOT") {
 			t.Fatalf("usage %d %v %s", code, err, out.String())
 		}
+	}
+}
+
+func TestStatuslineRecordsSanitizedAccountObservation(t *testing.T) {
+	a := fixtureApp(t)
+	command(t, a, "account", "add", "a")
+	r, _ := a.Store.Load()
+	account, _ := r.Find("a")
+	t.Setenv("CCR_HOME", a.Store.Root)
+	t.Setenv("CLAUDE_CONFIG_DIR", a.Store.ProfileDir(account))
+	a.In = strings.NewReader(fmt.Sprintf(`{"rate_limits":{"five_hour":{"used_percentage":95,"resets_at":%d}},"transcript_path":"SECRET"}`, time.Now().Unix()+3600))
+	command(t, a, "usage", "statusline", "--account-id", account.ID)
+	snapshot, err := usage.Load(a.Store, account.ID)
+	if err != nil || snapshot == nil || snapshot.FiveHour == nil {
+		t.Fatalf("%+v %v", snapshot, err)
+	}
+	b, _ := os.ReadFile(filepath.Join(a.Store.Root, "usage", account.ID+".json"))
+	if strings.Contains(string(b), "SECRET") {
+		t.Fatal("raw telemetry persisted")
 	}
 }
 

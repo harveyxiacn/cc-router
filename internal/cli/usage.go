@@ -1,26 +1,19 @@
 package cli
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/harveyxiacn/cc-router/internal/state"
+	"github.com/harveyxiacn/cc-router/internal/usage"
 	"io"
 	"math"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 )
-
-type usageWindow struct {
-	Used     *float64 `json:"used_percentage"`
-	ResetsAt int64    `json:"resets_at"`
-}
-type usageInput struct {
-	RateLimits *struct {
-		FiveHour *usageWindow `json:"five_hour"`
-		SevenDay *usageWindow `json:"seven_day"`
-	} `json:"rate_limits"`
-}
 
 func (a *App) usage(args []string) (int, error) {
 	if len(args) == 1 && args[0] == "config" {
@@ -31,9 +24,14 @@ func (a *App) usage(args []string) (int, error) {
 		return 0, errors.New("usage: ccr usage statusline [--prepare-at 90] [--switch-at 95], or ccr usage config")
 	}
 	prepare, switchAt := 90.0, 95.0
+	accountID := ""
 	for i := 1; i < len(args); i += 2 {
 		if i+1 >= len(args) {
 			return 0, errors.New("usage threshold needs a percentage")
+		}
+		if args[i] == "--account-id" {
+			accountID = args[i+1]
+			continue
 		}
 		n, err := strconv.ParseFloat(args[i+1], 64)
 		if err != nil || math.IsNaN(n) || math.IsInf(n, 0) {
@@ -55,27 +53,54 @@ func (a *App) usage(args []string) (int, error) {
 	if err != nil || len(b) > 1024*1024 {
 		return 0, errors.New("usage input exceeds limit or cannot be read")
 	}
-	var input usageInput
-	if err := json.Unmarshal(b, &input); err != nil {
+	observation, err := usage.Decode(b, time.Now())
+	if err != nil {
 		return 0, errors.New("invalid official statusline JSON; usage unknown")
+	}
+	if accountID != "" {
+		s, err := state.Open("")
+		if err != nil {
+			return 0, errors.New("usage cache unavailable")
+		}
+		r, err := s.Load()
+		if err != nil {
+			return 0, errors.New("usage registry unavailable")
+		}
+		found := false
+		for _, account := range r.Accounts {
+			if account.ID == accountID {
+				expected := filepath.Clean(s.ProfileDir(account))
+				actual := filepath.Clean(os.Getenv("CLAUDE_CONFIG_DIR"))
+				matches := expected == actual
+				if runtime.GOOS == "windows" {
+					matches = strings.EqualFold(expected, actual)
+				}
+				if !matches {
+					return 0, errors.New("usage callback does not match the selected profile")
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return 0, errors.New("usage account is no longer registered")
+		}
+		if err := usage.Save(s, accountID, observation); err != nil {
+			return 0, errors.New("usage observation could not be saved")
+		}
 	}
 	now := time.Now().Unix()
 	maxUsed := -1.0
-	render := func(label string, w *usageWindow) string {
-		if w == nil || w.Used == nil || *w.Used < 0 || *w.Used > 100 || w.ResetsAt <= now {
+	render := func(label string, w *usage.Window) string {
+		if w == nil || w.ResetsAt <= now {
 			return label + " unknown"
 		}
-		if *w.Used > maxUsed {
-			maxUsed = *w.Used
+		if w.UsedPercentage > maxUsed {
+			maxUsed = w.UsedPercentage
 		}
-		return fmt.Sprintf("%s %.1f%% (reset %s)", label, *w.Used, time.Unix(w.ResetsAt, 0).Local().Format("01-02 15:04"))
+		return fmt.Sprintf("%s %.1f%% (reset %s)", label, w.UsedPercentage, time.Unix(w.ResetsAt, 0).Local().Format("01-02 15:04"))
 	}
-	var five, seven *usageWindow
-	if input.RateLimits != nil {
-		five = input.RateLimits.FiveHour
-		seven = input.RateLimits.SevenDay
-	}
-	parts := []string{"CC Router", render("5h", five), render("7d", seven)}
+	parts := []string{"CC Router", render("5h", observation.FiveHour), render("7d", observation.SevenDay)}
 	if maxUsed >= switchAt {
 		parts = append(parts, "SWITCH RECOMMENDED: finish safely, update handoff, confirm switch")
 	} else if maxUsed >= prepare {

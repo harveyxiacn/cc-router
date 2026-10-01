@@ -6,6 +6,8 @@
 *.exe
 *.test
 coverage.out
+/cc-router
+/ccr
 .env
 .env.*
 !.env.example

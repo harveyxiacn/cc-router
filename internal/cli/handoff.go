@@ -138,6 +138,17 @@ func addGitExclude(root *os.Root) {
 	if err != nil || !st.IsDir() || st.Mode()&os.ModeSymlink != 0 {
 		return
 	}
+	st, err = root.Lstat(".git/info")
+	if err != nil || !st.IsDir() || st.Mode()&os.ModeSymlink != 0 {
+		return
+	}
+	st, err = root.Lstat(".git/info/exclude")
+	if err == nil && (!st.Mode().IsRegular() || st.Size() > 64*1024) {
+		return
+	}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return
+	}
 	b, err := root.ReadFile(".git/info/exclude")
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return
