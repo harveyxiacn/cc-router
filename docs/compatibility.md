@@ -21,6 +21,7 @@ This is an alpha, not completion of the original plan's 1.0 acceptance checklist
 | Frontend unit and browser interaction tests | 18 frontend tests passed; browser fixture covers login, handoff and updates |
 | Signed updater helper lifecycle | Three-OS fixture processes: successful startup, failed-startup rollback/restart and manual rollback; no real accounts used |
 | Desktop CI on all three OSes | Native test/build matrix; release artifacts require a passing [CI run](https://github.com/harveyxiacn/cc-router/actions/workflows/ci.yml) for the release commit |
+| Desktop release architectures | Windows amd64, Linux amd64 and macOS arm64; **macOS Intel desktop package not yet provided**. Standalone CLI packages exist for amd64 and arm64 on all three OSes |
 | Windows symlink rejection runtime tests | Some tests skip when OS denies creating symlinks |
 | Two real Claude accounts per OS, restart persistence | **Not tested**; owner login required |
 | Real terminal Ctrl+C/resize/interactive prompts | **Not tested**; fixture process tests are narrower |
@@ -29,6 +30,7 @@ This is an alpha, not completion of the original plan's 1.0 acceptance checklist
 | Update manifest signature | Ed25519 verification and SHA-256 archive checks implemented |
 | Authenticode, macOS binary signing and notarization | **Not provided in alpha** |
 | Cross-account transcript-path resume | **Not implemented or validated** |
+| Original plan's manual quota and local limit records | **Not implemented**; current usage records come only from the official statusline |
 | Enterprise MDM/registry/cloud policy completeness | Conservative detection; no full policy-merging implementation |
 
 ## Before 1.0
@@ -47,6 +49,6 @@ concurrent thread/process regressions on macOS; lock files remain persistent.
 
 ## Manual owner smoke test
 
-Use test accounts/profiles created through `ccr account add`, then `ccr login`. Never paste credentials into bug reports. Check both identities with `ccr status` and official `/status`. In a disposable project, run an ordinary task, record its changes/tests in `ccr handoff`, exit, and use `ccr switch OTHER --handoff-reviewed`. Confirm the new conversation can continue from the actual workspace without sharing history.
+Use test accounts/profiles created through `cc-router account add`, then `cc-router login`. Never paste credentials into bug reports. Check both identities with `cc-router status` and official `/status`. In a disposable project, run an ordinary task, record its changes/tests in `cc-router handoff`, exit, and use `cc-router switch OTHER --handoff-reviewed`. Confirm the new conversation can continue from the actual workspace without sharing history.
 
 Uninstall removes binaries, not profiles. Registry removal preserves official data. Review any eventual profile deletion manually and separately.

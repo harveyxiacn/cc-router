@@ -17,28 +17,28 @@ var Version = "0.1.0-alpha.1"
 const Help = `CC Router — local Claude Code profile launcher
 
 Usage:
-  ccr init
-  ccr account add NAME [--label LABEL]
-  ccr account list
-  ccr account rename NAME NEW_NAME [--label LABEL]
-  ccr account remove NAME
-  ccr login NAME
-  ccr use NAME
-  ccr bind NAME
-  ccr unbind
-  ccr run [NAME] [-- CLAUDE_ARGS...]
-  ccr status [NAME]
-  ccr doctor [NAME]
-  ccr handoff
-  ccr switch [NAME] [--handoff-reviewed]
-  ccr export
-  ccr import FILE|-
-  ccr usage statusline [--prepare-at 90] [--switch-at 95]
-  ccr usage config
-  ccr version
+  cc-router init
+  cc-router account add NAME [--label LABEL]
+  cc-router account list
+  cc-router account rename NAME NEW_NAME [--label LABEL]
+  cc-router account remove NAME
+  cc-router login NAME
+  cc-router use NAME
+  cc-router bind NAME
+  cc-router unbind
+  cc-router run [NAME] [-- CLAUDE_ARGS...]
+  cc-router status [NAME]
+  cc-router doctor [NAME]
+  cc-router handoff
+  cc-router switch [NAME] [--handoff-reviewed]
+  cc-router export
+  cc-router import FILE|-
+  cc-router usage statusline [--prepare-at 90] [--switch-at 95]
+  cc-router usage config
+  cc-router version
 
 Selection: explicit name > current directory binding > global default > prompt.
-The cc-router binary accepts the same commands. Choose it if ccr is already installed.
+Use cc-router as the primary command. The optional legacy alias may conflict with other tools.
 Removed accounts retain their official configuration. No credentials are exported.
 `
 
@@ -86,17 +86,17 @@ func (a *App) Execute(args []string) (int, error) {
 	switch cmd {
 	case "init":
 		if len(rest) != 0 {
-			return 0, errors.New("usage: ccr init")
+			return 0, errors.New("usage: cc-router init")
 		}
 		if err := a.Store.Update(func(*state.Registry) error { return nil }); err != nil {
 			return 0, err
 		}
-		fmt.Fprintln(a.Out, "Account registry initialized. Add an account with: ccr account add NAME")
+		fmt.Fprintln(a.Out, "Account registry initialized. Add an account with: cc-router account add NAME")
 	case "account":
 		return a.account(rest)
 	case "use", "bind":
 		if len(rest) != 1 {
-			return 0, fmt.Errorf("usage: ccr %s NAME", cmd)
+			return 0, fmt.Errorf("usage: cc-router %s NAME", cmd)
 		}
 		project, err := state.CanonicalProject(a.Dir)
 		if err != nil {
@@ -114,7 +114,7 @@ func (a *App) Execute(args []string) (int, error) {
 		fmt.Fprintf(a.Out, "%s: %s (future launches only)\n", cmd, rest[0])
 	case "unbind":
 		if len(rest) != 0 {
-			return 0, errors.New("usage: ccr unbind")
+			return 0, errors.New("usage: cc-router unbind")
 		}
 		p, err := state.CanonicalProject(a.Dir)
 		if err != nil {
@@ -125,7 +125,7 @@ func (a *App) Execute(args []string) (int, error) {
 		return a.launch(cmd, rest)
 	case "status", "doctor":
 		if len(rest) > 1 {
-			return 0, fmt.Errorf("usage: ccr %s [NAME]", cmd)
+			return 0, fmt.Errorf("usage: cc-router %s [NAME]", cmd)
 		}
 		name := ""
 		if len(rest) == 1 {
@@ -161,7 +161,7 @@ func (a *App) Execute(args []string) (int, error) {
 		return 0, err
 	case "handoff":
 		if len(rest) != 0 {
-			return 0, errors.New("usage: ccr handoff")
+			return 0, errors.New("usage: cc-router handoff")
 		}
 		unlock, err := a.Store.LockProject(a.Dir)
 		if err != nil {
@@ -179,12 +179,12 @@ func (a *App) Execute(args []string) (int, error) {
 		}
 	case "export":
 		if len(rest) != 0 {
-			return 0, errors.New("usage: ccr export (JSON on stdout)")
+			return 0, errors.New("usage: cc-router export (JSON on stdout)")
 		}
 		return 0, a.Store.Export(a.Out)
 	case "import":
 		if len(rest) != 1 {
-			return 0, errors.New("usage: ccr import FILE|-")
+			return 0, errors.New("usage: cc-router import FILE|-")
 		}
 		input := a.In
 		if rest[0] != "-" {
@@ -200,7 +200,7 @@ func (a *App) Execute(args []string) (int, error) {
 		}
 		fmt.Fprintln(a.Out, "Imported account metadata. Authenticate each new account on this device.")
 	default:
-		return 0, fmt.Errorf("unknown command %q; run ccr help", cmd)
+		return 0, fmt.Errorf("unknown command %q; run cc-router help", cmd)
 	}
 	return 0, nil
 }
@@ -217,12 +217,12 @@ func labelArgument(args []string) (string, error) {
 
 func (a *App) account(args []string) (int, error) {
 	if len(args) == 0 {
-		return 0, errors.New("usage: ccr account add|list|rename|remove")
+		return 0, errors.New("usage: cc-router account add|list|rename|remove")
 	}
 	switch args[0] {
 	case "add":
 		if len(args) < 2 {
-			return 0, errors.New("usage: ccr account add NAME [--label LABEL]")
+			return 0, errors.New("usage: cc-router account add NAME [--label LABEL]")
 		}
 		label, err := labelArgument(args[2:])
 		if err != nil {
@@ -235,17 +235,17 @@ func (a *App) account(args []string) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		fmt.Fprintf(a.Out, "Added %s. Authenticate with: ccr login %s\n", args[1], args[1])
+		fmt.Fprintf(a.Out, "Added %s. Authenticate with: cc-router login %s\n", args[1], args[1])
 	case "list":
 		if len(args) != 1 {
-			return 0, errors.New("usage: ccr account list")
+			return 0, errors.New("usage: cc-router account list")
 		}
 		r, err := a.Store.Load()
 		if err != nil {
 			return 0, err
 		}
 		if len(r.Accounts) == 0 {
-			fmt.Fprintln(a.Out, "No accounts. Run ccr account add NAME.")
+			fmt.Fprintln(a.Out, "No accounts. Run cc-router account add NAME.")
 		}
 		for _, account := range r.Accounts {
 			mark := " "
@@ -260,11 +260,11 @@ func (a *App) account(args []string) (int, error) {
 		}
 		label := ""
 		if args[0] == "remove" && len(args) != 2 {
-			return 0, errors.New("usage: ccr account remove NAME")
+			return 0, errors.New("usage: cc-router account remove NAME")
 		}
 		if args[0] == "rename" {
 			if len(args) < 3 {
-				return 0, errors.New("usage: ccr account rename NAME NEW_NAME [--label LABEL]")
+				return 0, errors.New("usage: cc-router account rename NAME NEW_NAME [--label LABEL]")
 			}
 			var err error
 			label, err = labelArgument(args[3:])
@@ -306,7 +306,7 @@ func (a *App) account(args []string) (int, error) {
 		}
 		fmt.Fprintln(a.Out, "Account registry updated; official profile files preserved.")
 	default:
-		return 0, errors.New("usage: ccr account add|list|rename|remove")
+		return 0, errors.New("usage: cc-router account add|list|rename|remove")
 	}
 	return 0, nil
 }
@@ -325,7 +325,7 @@ func (a *App) selectAccount(name string, prompt bool) (state.Account, error) {
 		return account, err
 	}
 	if len(r.Accounts) == 0 {
-		return state.Account{}, errors.New("no accounts; run ccr account add NAME")
+		return state.Account{}, errors.New("no accounts; run cc-router account add NAME")
 	}
 	for i, v := range r.Accounts {
 		fmt.Fprintf(a.Err, "%d) %s — %s\n", i+1, v.Name, v.Label)
@@ -366,7 +366,7 @@ func (a *App) launch(cmd string, args []string) (int, error) {
 	}
 	if cmd == "login" {
 		if name == "" || len(args) > 0 {
-			return 0, errors.New("usage: ccr login NAME")
+			return 0, errors.New("usage: cc-router login NAME")
 		}
 		forward = []string{"auth", "login", "--claudeai"}
 	}
@@ -380,7 +380,7 @@ func (a *App) launch(cmd string, args []string) (int, error) {
 		if len(args) == 1 && args[0] == "--handoff-reviewed" {
 			reviewed = true
 		} else if len(args) != 0 {
-			return 0, errors.New("usage: ccr switch [NAME] [--handoff-reviewed]; switch starts a new session")
+			return 0, errors.New("usage: cc-router switch [NAME] [--handoff-reviewed]; switch starts a new session")
 		}
 	}
 	account, err := a.selectAccount(name, true)
@@ -417,7 +417,7 @@ func (a *App) launch(cmd string, args []string) (int, error) {
 		}
 		fmt.Fprintf(a.Err, "Handoff: %s. Ask the new session to read it and verify the workspace.\n", path)
 		if !reviewed || created {
-			return 0, errors.New("review and update the handoff, then run ccr switch NAME --handoff-reviewed")
+			return 0, errors.New("review and update the handoff, then run cc-router switch NAME --handoff-reviewed")
 		}
 	}
 	if a.Launch == nil {

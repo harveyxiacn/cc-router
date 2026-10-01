@@ -21,7 +21,7 @@ func (a *App) usage(args []string) (int, error) {
 		return 0, nil
 	}
 	if len(args) == 0 || args[0] != "statusline" {
-		return 0, errors.New("usage: ccr usage statusline [--prepare-at 90] [--switch-at 95], or ccr usage config")
+		return 0, errors.New("usage: cc-router usage statusline [--prepare-at 90] [--switch-at 95], or cc-router usage config")
 	}
 	prepare, switchAt := 90.0, 95.0
 	accountID := ""

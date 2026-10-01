@@ -1,4 +1,4 @@
-param([string]$Go = 'go', [string]$Version = '0.1.0-alpha.1')
+param([string]$Go = 'go', [string]$Version = '0.1.0-alpha.1', [switch]$IncludeLegacyAlias)
 $ErrorActionPreference = 'Stop'
 if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw 'Invalid release version' }
 $projectRoot = Split-Path $PSScriptRoot -Parent
@@ -16,15 +16,21 @@ try {
         $binary = Join-Path $stage ('cc-router' + $suffix)
         & $Go build -buildvcs=false -trimpath -ldflags "-s -w -X github.com/harveyxiacn/cc-router/internal/cli.Version=$Version" -o $binary ./cmd/ccr
         if ($LASTEXITCODE -ne 0) { throw "Build failed: $target" }
-        Copy-Item -LiteralPath $binary -Destination (Join-Path $stage ('ccr' + $suffix)) -Force
+        $packageFiles = @(('cc-router' + $suffix), 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'compatibility.md')
+        if ($IncludeLegacyAlias) {
+            $aliasName = 'ccr' + $suffix
+            Copy-Item -LiteralPath $binary -Destination (Join-Path $stage $aliasName) -Force
+            $packageFiles += $aliasName
+        }
         Copy-Item -LiteralPath 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'docs/compatibility.md' -Destination $stage -Force
         if ($parts[0] -eq 'windows') {
             $archive = Join-Path 'dist' ("cc-router-$target.zip")
-            Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $archive -Force
+            $packagePaths = @($packageFiles | ForEach-Object { Join-Path $stage $_ })
+            Compress-Archive -LiteralPath $packagePaths -DestinationPath $archive -Force
         } else {
             $archive = Join-Path 'dist' ("cc-router-$target.tar.gz")
             # Windows-created archives may need chmod +x after extraction, as documented.
-            & tar -czf $archive --options 'gzip:compression-level=9' -C $stage 'cc-router' 'ccr' 'README.md' 'LICENSE' 'THIRD_PARTY_NOTICES.txt' 'compatibility.md'
+            & tar -czf $archive --options 'gzip:compression-level=9' -C $stage @packageFiles
             if ($LASTEXITCODE -ne 0) { throw "Archive failed: $target" }
         }
         $archives += $archive

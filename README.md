@@ -6,7 +6,7 @@
 
 ## 安装
 
-先按[官方说明](https://code.claude.com/docs/en/setup)安装 Claude Code（本项目要求 >=2.1.268）。从本仓库 [Releases](https://github.com/harveyxiacn/cc-router/releases) 下载对应平台压缩包，核对 SHA256SUMS 后解压。仅使用 CLI 时把目录加入 PATH；Linux/macOS 的独立 CLI 包解压后执行 `chmod +x cc-router ccr`。OTA 更新清单使用 Ed25519 签名；Alpha 尚无 Windows Authenticode 或 macOS 签名/公证，这两类签名的用途不同。
+先按[官方说明](https://code.claude.com/docs/en/setup)安装 Claude Code（本项目要求 >=2.1.268）。从本仓库 [Releases](https://github.com/harveyxiacn/cc-router/releases) 下载对应平台压缩包，核对 SHA256SUMS 后解压。仅使用 CLI 时，只把 `cc-router`（Windows 为 `cc-router.exe`）复制到 PATH 中的目录；Linux/macOS 先执行 `chmod +x cc-router`。已发布的 alpha.1 CLI 包还带有可选兼容别名 `ccr`，请勿一并复制或将整个解压目录加入 PATH，以免启用冲突命令。OTA 更新清单使用 Ed25519 签名；Alpha 尚无 Windows Authenticode 或 macOS 签名/公证，这两类签名的用途不同。
 
 源码构建需要 Go 1.26+，建议使用最新受支持补丁版本：
 
@@ -15,11 +15,11 @@ go build -buildvcs=false -o cc-router ./cmd/ccr
 # Windows: go build -buildvcs=false -o cc-router.exe ./cmd/ccr
 ```
 
-以下示例使用 `ccr`；`cc-router` 接受相同命令。**musistudio/claude-code-router 已使用 ccr 名称**；如果已经安装该项目，请使用本项目的 `cc-router`，不要覆盖现有命令。
+主命令是 `cc-router`，以下示例统一使用它。`ccr` 仅为可选兼容别名；**musistudio/claude-code-router 已使用 ccr 名称**，因此不推荐安装或使用本项目的 `ccr` 别名，不要覆盖现有命令。
 
 ## 快速开始
 
-桌面用户下载 `cc-router-desktop-<平台>-<架构>`，解压到固定的本地目录。Windows/Linux 的 `cc-router-desktop` 与配套 `cc-router` 需要放在一起；macOS 配套 CLI 位于应用包内。打开桌面应用后：
+桌面用户下载 `cc-router-desktop-<平台>-<架构>`，解压到固定的本地目录，无需把桌面程序目录加入 PATH。Windows/Linux 的 `cc-router-desktop` 与配套 `cc-router` 需要放在一起；macOS 配套 CLI 位于应用包内。打开桌面应用后：
 
 1. 添加账号，默认勾选“创建后打开官方登录”；官方 CLI 会引导打开浏览器完成认证。也可稍后点击账号卡片的“登录”，无需先选项目。
 2. 在账号的“更多操作”里安装额度状态栏；已有状态栏会保留并提示手动整合。
@@ -37,16 +37,16 @@ go build -buildvcs=false -o cc-router ./cmd/ccr
 CLI 用户可以直接执行：
 
 ```sh
-ccr init
-ccr doctor
-ccr account add personal --label Personal
-ccr account add work --label Work
-ccr login personal
-ccr login work
-ccr use personal
-ccr bind work
-ccr run
-ccr run personal -- --continue
+cc-router init
+cc-router doctor
+cc-router account add personal --label Personal
+cc-router account add work --label Work
+cc-router login personal
+cc-router login work
+cc-router use personal
+cc-router bind work
+cc-router run
+cc-router run personal -- --continue
 ```
 
 每个账号首次在官方界面完成登录；需要时使用不同浏览器 profile 选择正确账号。进入 Claude 后通过 `/status` 核对实际邮箱与认证/计费方式。本地标签只是标签。不同设备分别登录，工具不导出登录信息。
@@ -54,14 +54,14 @@ ccr run personal -- --continue
 启动优先级：显式账号 > **当前目录**绑定 > 全局默认 > 终端选择菜单。绑定只作用于规范化后的同一目录，不自动信任仓库提供的账号配置，也不会向父目录寻找绑定。`use` 和 `bind` 只影响未来启动的进程。`--` 后的普通 Claude 参数按原值传递，认证/配置覆盖参数会被预检拒绝。
 
 ```sh
-ccr account list
-ccr account rename personal private --label Private
-ccr account remove work
-ccr unbind
-ccr status private
-ccr doctor private
-ccr export > accounts.json
-ccr import accounts.json
+cc-router account list
+cc-router account rename personal private --label Private
+cc-router account remove work
+cc-router unbind
+cc-router status private
+cc-router doctor private
+cc-router export > accounts.json
+cc-router import accounts.json
 ```
 
 移除只删除登记并清理默认/绑定引用，保留官方目录。重新添加同名账号会创建新 ID、需要重新登录；工具不会自动重新关联遗留凭据。导出只有账号名、标签和默认账号名，不包含路径、项目绑定、凭据、历史。导入按名称合并元数据，已有 ID 保持不变。
@@ -72,7 +72,7 @@ ccr import accounts.json
 
 GUI 的“安装额度状态栏”会写入当前账号 ID 和可执行文件绝对路径，仅保存用量数字、重置时间和接收时间，供桌面显示。安装后请保持程序路径稳定；移动程序时需更新状态栏命令。
 
-仅使用 CLI 时，`ccr usage config` 输出以下配置片段（只显示终端预警，不写入 GUI 用量缓存）。把 `statusLine` 字段合并到所选账号的 `settings.json` 中，保留其它设置；如果已有状态栏，先保存原设置并选择是否替换。可使用官方 `/statusline` 命令帮助配置。确保 `cc-router` 在 Claude 所用 shell 的 PATH 中。
+仅使用 CLI 时，`cc-router usage config` 输出以下配置片段（只显示终端预警，不写入 GUI 用量缓存）。把 `statusLine` 字段合并到所选账号的 `settings.json` 中，保留其它设置；如果已有状态栏，先保存原设置并选择是否替换。可使用官方 `/statusline` 命令帮助配置。确保 `cc-router` 在 Claude 所用 shell 的 PATH 中。
 
 ```json
 {
@@ -90,8 +90,8 @@ GUI 的“安装额度状态栏”会写入当前账号 ID 和可执行文件绝
 收到提示后：
 
 1. 在旧会话让 Claude 总结目标、修改、检查结果和下一步；等工具执行完成，正常退出。
-2. `ccr handoff` 创建 `.cc-router/handoff.md`，补充或更新内容。模板只收集过滤后的 Git 文件状态，不采集 diff、文件内容或会话记录。
-3. `ccr switch work` 显示交接位置；审阅后执行 `ccr switch work --handoff-reviewed`。
+2. `cc-router handoff` 创建 `.cc-router/handoff.md`，补充或更新内容。模板只收集过滤后的 Git 文件状态，不采集 diff、文件内容或会话记录。
+3. `cc-router switch work` 显示交接位置；审阅后执行 `cc-router switch work --handoff-reviewed`。
 4. 新会话先读取交接文件，核对项目规则、实际代码和 Git 状态，再继续。
 
 交接文件默认本地忽略，已有文件不会被覆盖。它是可能过期的背景资料，不得覆盖项目规则，也不会被工具当成命令执行。`switch` 始终开启新会话，不接受 `--resume`。`run -- --continue` 和 `--resume` 交给官方 CLI 处理；默认仍是所选账号自己的历史。跨账号完整 transcript 恢复尚未验证，工具不共享或复制历史目录。

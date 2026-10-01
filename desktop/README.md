@@ -60,6 +60,9 @@ Windows CLI 的输出文件名应为 `cc-router.exe`。桌面产物位于
 或放在 `.app` 同级目录。也可以通过 `CC_ROUTER_CLI` 指定 CLI 的绝对路径。
 账号数据目录继续使用 CLI 的 `CCR_HOME` 规则。
 
+CLI 主命令为 `cc-router`，桌面运行不要求把程序目录加入 PATH。`ccr` 仅是
+可选兼容别名，可能与 musistudio/claude-code-router 的同名命令冲突，不推荐安装或使用。
+
 开发时可运行 `wails dev`。单独运行 `npm run dev` 只提供浏览器视觉预览，
 没有 Wails 桥接时会明确显示未连接，不会提供模拟数据。
 
