@@ -3,14 +3,24 @@ $ErrorActionPreference = 'Stop'
 if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw 'Invalid release version' }
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $previousGoFlags = $env:GOFLAGS
+$configurationPath = Join-Path $projectRoot 'desktop/wails.json'
+$originalConfiguration = [System.IO.File]::ReadAllBytes($configurationPath)
 Push-Location -LiteralPath $projectRoot
 try {
     $targetOS = (& $Go env GOOS).Trim()
     $targetArch = (& $Go env GOARCH).Trim()
     $env:GOFLAGS = '-buildvcs=false'
+    $configuration = [System.Text.Encoding]::UTF8.GetString($originalConfiguration) | ConvertFrom-Json
+    if ($null -eq $configuration.info) {
+        $configuration | Add-Member -NotePropertyName info -NotePropertyValue ([PSCustomObject]@{})
+    }
+    $configuration.info | Add-Member -NotePropertyName productVersion -NotePropertyValue $Version.Split('-')[0] -Force
+    $configuration.info | Add-Member -NotePropertyName comments -NotePropertyValue "CC Router $Version" -Force
+    $configurationText = ($configuration | ConvertTo-Json -Depth 20) + [Environment]::NewLine
+    [System.IO.File]::WriteAllText($configurationPath, $configurationText, [System.Text.UTF8Encoding]::new($false))
     Push-Location -LiteralPath 'desktop'
     try {
-        $buildArgs = @('build', '-clean', '-ldflags', "-s -w -X github.com/harveyxiacn/cc-router/internal/cli.Version=$Version")
+        $buildArgs = @('build', '-clean', '-trimpath', '-ldflags', "-s -w -X github.com/harveyxiacn/cc-router/internal/cli.Version=$Version")
         if ($targetOS -eq 'linux') { $buildArgs += @('-tags', 'webkit2_41') }
         & $Wails @buildArgs
         if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed' }
@@ -43,6 +53,7 @@ try {
     "$hash  $([System.IO.Path]::GetFileName($archive))" | Set-Content -LiteralPath ($archive + '.sha256') -Encoding ascii
     Write-Output "Built desktop $targetOS-$targetArch"
 } finally {
+    [System.IO.File]::WriteAllBytes($configurationPath, $originalConfiguration)
     $env:GOFLAGS = $previousGoFlags
     Pop-Location
 }

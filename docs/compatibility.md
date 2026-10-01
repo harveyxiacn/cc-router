@@ -16,11 +16,11 @@ This is an alpha, not completion of the original plan's 1.0 acceptance checklist
 | Windows core, desktop service and CLI fixture-process tests | Passed locally (`go test -count=1 ./...`) |
 | Go vet and core source vulnerability scan | Passed; govulncheck reports no known vulnerabilities |
 | Windows/Linux/macOS CLI cross-builds | Passed for amd64 and arm64 on all three systems |
-| GitHub Actions core checks and six CLI builds | Passed on [commit 9cab233](https://github.com/harveyxiacn/cc-router/actions/runs/36889169668) |
+| GitHub Actions core checks and six CLI builds | Passed, including updater lifecycle, Linux race and vulnerability checks, on [commit a5756e1](https://github.com/harveyxiacn/cc-router/actions/runs/36896638815) |
 | Windows desktop production build | Passed locally with Wails 2.16.0; native dialog/terminal acceptance remains separate |
 | Frontend unit and browser interaction tests | 18 frontend tests passed; browser fixture covers login, handoff and updates |
-| Signed updater helper lifecycle | Windows fixture processes: successful startup, failed-startup rollback and restart; no real accounts used |
-| Desktop CI on all three OSes | Final workflow verification pending |
+| Signed updater helper lifecycle | Three-OS fixture processes: successful startup, failed-startup rollback/restart and manual rollback; no real accounts used |
+| Desktop CI on all three OSes | Native test/build matrix; release artifacts require a passing [CI run](https://github.com/harveyxiacn/cc-router/actions/workflows/ci.yml) for the release commit |
 | Windows symlink rejection runtime tests | Some tests skip when OS denies creating symlinks |
 | Two real Claude accounts per OS, restart persistence | **Not tested**; owner login required |
 | Real terminal Ctrl+C/resize/interactive prompts | **Not tested**; fixture process tests are narrower |
