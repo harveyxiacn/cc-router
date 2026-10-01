@@ -286,6 +286,8 @@ func (p *plan) spawn(mode string) error {
 				}
 				alive, err := processAlive(command.Process.Pid)
 				if err != nil || !alive {
+					_ = command.Process.Kill()
+					<-done
 					return errors.New("update helper is no longer running")
 				}
 				return nil

@@ -72,6 +72,9 @@ jobs:
       - name: Linux WebView prerequisites
         if: runner.os == 'Linux'
         run: |
+          for source in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [[ -f "$source" ]]; then sudo sed -i 's|http://azure.archive.ubuntu.com|https://archive.ubuntu.com|g; s|https://azure.archive.ubuntu.com|https://archive.ubuntu.com|g' "$source"; fi
+          done
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
       - name: Frontend tests and build
