@@ -47,4 +47,8 @@ func TestExplicitDataDirectorySurvivesTerminalEnvironment(t *testing.T) {
 	if code := run([]string{"--data-dir", "relative", "init"}, strings.NewReader(""), out, errOut, false); code == 0 {
 		t.Fatal("accepted relative private directory")
 	}
+	errOut.Reset()
+	if code := run([]string{"--data-dir", root, "--expect-account-id", strings.Repeat("0", 32), "run", "a"}, strings.NewReader(""), out, errOut, false); code == 0 || !strings.Contains(errOut.String(), "account changed after desktop selection") {
+		t.Fatalf("desktop selection guard missing: %d %s", code, errOut.String())
+	}
 }

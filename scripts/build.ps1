@@ -1,5 +1,6 @@
-param([string]$Go = 'go')
+param([string]$Go = 'go', [string]$Version = '0.1.0-alpha.1')
 $ErrorActionPreference = 'Stop'
+if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw 'Invalid release version' }
 $projectRoot = Split-Path $PSScriptRoot -Parent
 Push-Location -LiteralPath $projectRoot
 $oldOS, $oldArch, $oldCGO = $env:GOOS, $env:GOARCH, $env:CGO_ENABLED
@@ -13,17 +14,17 @@ try {
         New-Item -ItemType Directory -Path $stage -Force | Out-Null
         $suffix = if ($parts[0] -eq 'windows') { '.exe' } else { '' }
         $binary = Join-Path $stage ('cc-router' + $suffix)
-        & $Go build -buildvcs=false -trimpath -ldflags '-s -w' -o $binary ./cmd/ccr
+        & $Go build -buildvcs=false -trimpath -ldflags "-s -w -X github.com/harveyxiacn/cc-router/internal/cli.Version=$Version" -o $binary ./cmd/ccr
         if ($LASTEXITCODE -ne 0) { throw "Build failed: $target" }
         Copy-Item -LiteralPath $binary -Destination (Join-Path $stage ('ccr' + $suffix)) -Force
-        Copy-Item -LiteralPath 'README.md', 'LICENSE', 'docs/compatibility.md' -Destination $stage -Force
+        Copy-Item -LiteralPath 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'docs/compatibility.md' -Destination $stage -Force
         if ($parts[0] -eq 'windows') {
             $archive = Join-Path 'dist' ("cc-router-$target.zip")
             Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $archive -Force
         } else {
             $archive = Join-Path 'dist' ("cc-router-$target.tar.gz")
             # Windows-created archives may need chmod +x after extraction, as documented.
-            & tar -czf $archive --options 'gzip:compression-level=9' -C $stage 'cc-router' 'ccr' 'README.md' 'LICENSE' 'compatibility.md'
+            & tar -czf $archive --options 'gzip:compression-level=9' -C $stage 'cc-router' 'ccr' 'README.md' 'LICENSE' 'THIRD_PARTY_NOTICES.txt' 'compatibility.md'
             if ($LASTEXITCODE -ne 0) { throw "Archive failed: $target" }
         }
         $archives += $archive

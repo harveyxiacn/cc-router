@@ -96,6 +96,34 @@ func TestDesktopUsageSetupPreservesSettingsAndRefusesOverwrite(t *testing.T) {
 	}
 }
 
+func TestDesktopUsageSetupRejectsReplacedProfileLink(t *testing.T) {
+	s := testService(t)
+	if err := s.CreateAccount("a", "A"); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := s.Store.Load()
+	a, _ := r.Find("a")
+	profile := s.Store.ProfileDir(a)
+	outside := t.TempDir()
+	settings := filepath.Join(outside, "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"model":"preserve"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(profile, profile+"-retained"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, profile); err != nil {
+		t.Skipf("symlink permission unavailable: %v", err)
+	}
+	if err := s.InstallUsage("a", 90, 95); err == nil {
+		t.Fatal("updated linked profile settings")
+	}
+	data, _ := os.ReadFile(settings)
+	if string(data) != `{"model":"preserve"}` {
+		t.Fatal("modified external settings")
+	}
+}
+
 func TestDesktopLaunchUsesValidatedNamesAndDirectory(t *testing.T) {
 	s := testService(t)
 	if err := s.CreateAccount("a", "A"); err != nil {
@@ -105,7 +133,9 @@ func TestDesktopLaunchUsesValidatedNamesAndDirectory(t *testing.T) {
 	called := false
 	s.OpenTerminal = func(executable, project string, args []string) error {
 		called = true
-		if executable != s.CLIPath || len(args) != 4 || args[0] != "--data-dir" || args[1] != s.Store.Root || args[2] != "run" || args[3] != "a" {
+		r, _ := s.Store.Load()
+		account, _ := r.Find("a")
+		if executable != s.CLIPath || len(args) != 6 || args[0] != "--data-dir" || args[1] != s.Store.Root || args[2] != "--expect-account-id" || args[3] != account.ID || args[4] != "run" || args[5] != "a" {
 			t.Fatalf("unsafe launch: %s %s %v", executable, project, args)
 		}
 		return nil

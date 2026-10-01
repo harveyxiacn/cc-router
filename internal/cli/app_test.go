@@ -70,6 +70,21 @@ func TestAccountCommandsAndSelection(t *testing.T) {
 	}
 }
 
+func TestDesktopLaunchRejectsRecreatedAccountName(t *testing.T) {
+	a := fixtureApp(t)
+	command(t, a, "account", "add", "a")
+	r, _ := a.Store.Load()
+	original, _ := r.Find("a")
+	a.ExpectedAccountID = original.ID
+	command(t, a, "account", "remove", "a")
+	command(t, a, "account", "add", "a")
+	called := false
+	a.Launch = func(string, string, []string) (int, error) { called = true; return 0, nil }
+	if _, err := a.Execute([]string{"run", "a"}); err == nil || called {
+		t.Fatal("launched a different account with reused name")
+	}
+}
+
 func TestSelectionPromptDoesNotChangeGlobalDefault(t *testing.T) {
 	a := fixtureApp(t)
 	command(t, a, "account", "add", "a")

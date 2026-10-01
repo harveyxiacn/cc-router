@@ -13,6 +13,7 @@ import (
 	"github.com/harveyxiacn/cc-router/internal/claude"
 	"github.com/harveyxiacn/cc-router/internal/cli"
 	"github.com/harveyxiacn/cc-router/internal/state"
+	"github.com/harveyxiacn/cc-router/internal/update"
 )
 
 func main() {
@@ -22,6 +23,19 @@ func main() {
 }
 
 func run(args []string, in io.Reader, out, errout io.Writer, interactive bool) int {
+	if len(args) > 0 && args[0] == "internal-update" {
+		if err := update.RunHelper(args[1:]); err != nil {
+			fmt.Fprintln(errout, "cc-router update:", err)
+			return 2
+		}
+		return 0
+	}
+	unlock, err := update.CompanionLease()
+	if err != nil {
+		fmt.Fprintln(errout, "cc-router:", err)
+		return 2
+	}
+	defer unlock()
 	if len(args) > 0 && args[0] == "--data-dir" {
 		if len(args) < 3 || !filepath.IsAbs(args[1]) {
 			fmt.Fprintln(errout, "cc-router: --data-dir requires an absolute directory and a command")
@@ -42,6 +56,14 @@ func run(args []string, in io.Reader, out, errout io.Writer, interactive bool) i
 		args = args[2:]
 	}
 	app := &cli.App{In: in, Out: out, Err: errout, Interactive: interactive}
+	if len(args) > 0 && args[0] == "--expect-account-id" {
+		if len(args) < 3 || len(args[1]) != 32 || (args[2] != "run" && args[2] != "login" && args[2] != "switch") {
+			fmt.Fprintln(errout, "cc-router: --expect-account-id requires an account ID and a launch command")
+			return 2
+		}
+		app.ExpectedAccountID = args[1]
+		args = args[2:]
+	}
 	needsStore := len(args) > 0
 	if len(args) > 0 {
 		switch args[0] {

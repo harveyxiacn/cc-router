@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/harveyxiacn/cc-router/internal/cli"
 	"github.com/harveyxiacn/cc-router/internal/localdata"
 	"github.com/harveyxiacn/cc-router/internal/state"
+	"github.com/harveyxiacn/cc-router/internal/update"
 	"github.com/harveyxiacn/cc-router/internal/usage"
 )
 
@@ -29,6 +31,8 @@ type Service struct {
 	Store        *state.Store
 	CLIPath      string
 	OpenTerminal func(executable, project string, args []string) error
+	updater      *update.Manager
+	updatesMu    sync.RWMutex
 }
 type AccountView struct {
 	ID         string          `json:"id"`
@@ -302,6 +306,13 @@ func (s *Service) SaveHandoff(project, content, expectedDigest string) (Handoff,
 }
 
 func (s *Service) Launch(name, project, mode string, reviewed bool) error {
+	s.updatesMu.RLock()
+	defer s.updatesMu.RUnlock()
+	if s.updater != nil {
+		if err := s.updater.CanLaunch(); err != nil {
+			return err
+		}
+	}
 	if mode != "run" && mode != "login" && mode != "switch" {
 		return errors.New("unsupported launch mode")
 	}
@@ -362,7 +373,7 @@ func (s *Service) Launch(name, project, mode string, reviewed bool) error {
 	}
 	// Terminal servers may have a different inherited environment from the GUI.
 	// Pin the registry explicitly; the CLI also propagates it to statusline callbacks.
-	args := []string{"--data-dir", s.Store.Root, mode, a.Name}
+	args := []string{"--data-dir", s.Store.Root, "--expect-account-id", a.ID, mode, a.Name}
 	if mode == "switch" {
 		args = append(args, "--handoff-reviewed")
 	}
@@ -381,6 +392,9 @@ func validCLI(path string) error {
 	}
 	if runtime.GOOS == "windows" && !strings.EqualFold(filepath.Ext(path), ".exe") {
 		return errors.New("CC Router CLI must be a native executable")
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0111 == 0 {
+		return errors.New("CC Router CLI is not executable; set its execute permission")
 	}
 	return nil
 }
@@ -405,7 +419,12 @@ func (s *Service) InstallUsage(name string, prepare, switchAt float64) error {
 	if err != nil || current.ID != a.ID {
 		return errors.New("account changed; refresh and try again")
 	}
-	root, err := os.OpenRoot(s.Store.ProfileDir(a))
+	profile := s.Store.ProfileDir(a)
+	info, err := os.Lstat(profile)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("account profile must be an existing local directory, not a link")
+	}
+	root, err := os.OpenRoot(profile)
 	if err != nil {
 		return err
 	}

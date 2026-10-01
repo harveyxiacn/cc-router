@@ -49,3 +49,51 @@ jobs:
             dist/*.zip
             dist/*.tar.gz
             dist/SHA256SUMS
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.x'
+          cache-dependency-path: desktop/go.sum
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+      - name: Linux WebView prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+      - name: Frontend tests and build
+        working-directory: desktop/frontend
+        shell: bash
+        run: |
+          npm ci
+          npm test
+          npm run build
+          npm audit --audit-level=high
+      - name: Desktop Go checks
+        working-directory: desktop
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then export GOFLAGS="-tags=webkit2_41"; fi
+          go test ./...
+          go vet ./...
+          go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      - name: Install pinned Wails builder
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+      - name: Build desktop and companion CLI
+        shell: pwsh
+        run: ./scripts/build-desktop.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cc-router-desktop-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            dist/cc-router-desktop-*.zip
+            dist/cc-router-desktop-*.tar.gz
+            dist/cc-router-desktop-*.sha256

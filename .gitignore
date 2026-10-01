@@ -12,3 +12,5 @@ coverage.out
 .env.*
 !.env.example
 .credentials.json
+__pycache__/
+*.pyc

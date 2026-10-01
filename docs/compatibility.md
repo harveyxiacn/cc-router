@@ -16,13 +16,18 @@ This is an alpha, not completion of the original plan's 1.0 acceptance checklist
 | Windows core, desktop service and CLI fixture-process tests | Passed locally (`go test -count=1 ./...`) |
 | Go vet and core source vulnerability scan | Passed; govulncheck reports no known vulnerabilities |
 | Windows/Linux/macOS CLI cross-builds | Passed for amd64 and arm64 on all three systems |
-| GitHub Actions on three operating systems | Workflow prepared; not yet run |
+| GitHub Actions core checks and six CLI builds | Passed on [commit 9cab233](https://github.com/harveyxiacn/cc-router/actions/runs/36889169668) |
+| Windows desktop production build | Passed locally with Wails 2.16.0; native dialog/terminal acceptance remains separate |
+| Frontend unit and browser interaction tests | 18 frontend tests passed; browser fixture covers login, handoff and updates |
+| Signed updater helper lifecycle | Windows fixture processes: successful startup, failed-startup rollback and restart; no real accounts used |
+| Desktop CI on all three OSes | Final workflow verification pending |
 | Windows symlink rejection runtime tests | Some tests skip when OS denies creating symlinks |
 | Two real Claude accounts per OS, restart persistence | **Not tested**; owner login required |
 | Real terminal Ctrl+C/resize/interactive prompts | **Not tested**; fixture process tests are narrower |
 | CachyOS native Bash/Zsh/Fish | **Not tested**; Ubuntu CI is not CachyOS acceptance |
 | macOS Keychain account isolation | Documented by upstream; **not verified on real accounts** |
-| Signed Windows/macOS binaries and macOS notarization | **Not provided in alpha** |
+| Update manifest signature | Ed25519 verification and SHA-256 archive checks implemented |
+| Authenticode, macOS binary signing and notarization | **Not provided in alpha** |
 | Cross-account transcript-path resume | **Not implemented or validated** |
 | Enterprise MDM/registry/cloud policy completeness | Conservative detection; no full policy-merging implementation |
 

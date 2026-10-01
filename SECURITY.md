@@ -11,7 +11,9 @@ CC Router is an alpha local process launcher. It does not read `.credentials.jso
 - New private directories use 0700 on Unix and an owner-only inheritable ACL on Windows. Existing official profile ACLs are preserved.
 - Exports explicitly allow only account names, labels and default account name. No profile paths, project bindings or official files are exported.
 - Handoff collects filtered Git status paths only and never executes its contents. Usage consumes documented statusline stdin fields and ignores transcript paths.
-- GitHub Actions have read-only repository permissions and pinned action commits; runtime has no third-party Go modules.
+- GitHub Actions have read-only repository permissions and pinned action commits. The CLI/core uses the Go standard library; the desktop has separately locked Wails/frontend dependencies.
+- The desktop uses local Wails bindings and renders handoff text as an editable plain-text value. It has no credential entry form. Native terminals launch the companion CLI with the explicit data root.
+- Desktop updates require an embedded Ed25519 public key, an authenticated manifest, exact SHA-256/size checks and bounded, link-free extraction. The helper re-verifies the signed archive, requires an exclusive installation lease, backs up replaced files and rolls back an unsuccessful startup. Release signing keys are kept outside Git; Windows protects the local maintainer key with current-user DPAPI.
 
 ## Limits
 
@@ -23,6 +25,12 @@ The launcher trusts the installed official executable (or explicit `CCR_CLAUDE_B
 
 Usage percentages are last-reported snapshots; thresholds do not guarantee a remaining token reserve. The statusline may omit windows or model-specific limits. A missing value is unknown. No automatic quota rotation, request retry or task replay occurs.
 
+Usage setup edits only the selected profile's `statusLine` setting after an explicit user action, preserves unrelated settings, and refuses an existing statusline. The command path must stay stable. Cache files retain only usage/reset/observation fields, never raw statusline input. GUI edits to handoff notes use digest checks to detect a previously saved external edit; this is not a filesystem-wide transaction against other editors.
+
+Desktop binaries require native OS WebView components. Windows/Linux terminal launches use argument arrays/native process APIs; macOS Terminal.app uses a private, narrowly quoted `.command` bridge. These adapters still need interactive real-device acceptance. Development servers are separate from production desktop distribution.
+
 Session locks are advisory and apply only to this launcher and the selected canonical directory. They cannot detect every external Claude process or overlapping nested project. Background/daemon tasks and real terminal shutdown need explicit platform verification before a stable release.
+
+The updater trusts the embedded release key and the already installed companion CLI. It is not a full TUF deployment: there is one signing key, no threshold/offline root rotation protocol, and no independent timestamp service. Expired manifests and non-advancing automatic versions are rejected; a compromised signing key remains a release compromise. Authenticode/notarization are not supplied in this alpha. Files are synced and journaled, but recovery is not a guarantee against arbitrary power loss or filesystem corruption. See [updates](docs/updates.md) for portable-installation limits, health checks and rollback behavior.
 
 Report reproducible security issues without tokens, real conversation history or identifying account data. Use GitHub private vulnerability reporting when enabled; do not publish credentials in an issue. See [compatibility](docs/compatibility.md) for tests that still need real devices/accounts.

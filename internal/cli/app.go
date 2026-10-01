@@ -12,7 +12,7 @@ import (
 	"github.com/harveyxiacn/cc-router/internal/state"
 )
 
-const Version = "0.1.0-alpha.1"
+var Version = "0.1.0-alpha.1"
 
 const Help = `CC Router — local Claude Code profile launcher
 
@@ -44,14 +44,15 @@ Removed accounts retain their official configuration. No credentials are exporte
 
 // App coordinates commands; the official CLI adapter is injected at the executable boundary.
 type App struct {
-	Store       *state.Store
-	Dir         string
-	In          io.Reader
-	Out, Err    io.Writer
-	Interactive bool
-	Launch      func(profile, dir string, args []string) (int, error)
-	Inspect     func(profile, dir string) (string, error)
-	Diagnose    func(profile, dir string) (string, error)
+	Store             *state.Store
+	Dir               string
+	In                io.Reader
+	Out, Err          io.Writer
+	Interactive       bool
+	ExpectedAccountID string
+	Launch            func(profile, dir string, args []string) (int, error)
+	Inspect           func(profile, dir string) (string, error)
+	Diagnose          func(profile, dir string) (string, error)
 }
 
 func (a *App) Execute(args []string) (int, error) {
@@ -385,6 +386,9 @@ func (a *App) launch(cmd string, args []string) (int, error) {
 	account, err := a.selectAccount(name, true)
 	if err != nil {
 		return 0, err
+	}
+	if a.ExpectedAccountID != "" && account.ID != a.ExpectedAccountID {
+		return 0, errors.New("account changed after desktop selection; refresh and try again")
 	}
 	accountUnlock, err := a.Store.LockAccount(account.ID)
 	if err != nil {
