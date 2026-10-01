@@ -19,7 +19,8 @@ no GitHub token or account credentials. Manual checks work with automatic update
    plus 30 seconds without interaction. The explicit manual restart button does
    not require that 30-second delay. No Claude process is killed to make room.
 5. Copy the installed companion CLI outside the installation. This helper waits
-   for the GUI to exit, obtains an exclusive installation lease and independently
+   for the GUI to exit only after acknowledging verified inputs; a helper startup
+   failure keeps the GUI open. It obtains an exclusive installation lease and independently
    verifies the manifest/archive again. GUI and ordinary companion CLI processes
    hold shared installation leases, including while a managed session runs.
 6. Back up every replaced file before mutating the installation. Record progress

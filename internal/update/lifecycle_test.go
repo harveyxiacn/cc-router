@@ -227,3 +227,68 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 }
 
 func itoaPID(n int) string { return strconv.Itoa(n) }
+
+func TestHelperReadinessMustPrecedeDesktopExit(t *testing.T) {
+	manifest, raw, sig, public := signedFixture(t, []byte("fixture archive"))
+	oldKey := releasePublicKey
+	releasePublicKey = base64.StdEncoding.EncodeToString(public)
+	defer func() { releasePublicKey = oldKey }()
+	t.Setenv("CCR_TEST_OTA_PROCESS", "1")
+	t.Setenv("CCR_TEST_OTA_PUBLIC", releasePublicKey)
+	install, data := t.TempDir(), t.TempDir()
+	a := manifest.Assets[0]
+	binary, err := os.ReadFile(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixtureFile(t, install, a.GUI, string(binary))
+	fixtureFile(t, install, a.CLI, string(binary))
+	p, err := newPlan(data, Layout{Root: install, GUI: a.GUI, CLI: a.CLI}, "1.1.0", &Candidate{Manifest: manifest, ManifestBytes: raw, Signature: sig, Asset: a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.OpenRoot(planDirectory(data, p.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	p.Candidate.Signature = append([]byte(nil), sig...)
+	p.Candidate.Signature[0] ^= 1
+	if err = jsonWrite(root, "plan.json", p); err != nil {
+		t.Fatal(err)
+	}
+	if err = p.spawn("install"); err == nil {
+		t.Fatal("desktop would exit for a helper that rejected its inputs")
+	}
+	p.Candidate.Signature = sig
+	if err = jsonWrite(root, "plan.json", p); err != nil {
+		t.Fatal(err)
+	}
+	if err = p.spawn("install"); err != nil {
+		t.Fatal(err)
+	}
+	var ready helperReady
+	if err = jsonRead(root, "helper-ready.json", &ready); err != nil {
+		t.Fatal(err)
+	}
+	child, err := os.FindProcess(ready.PID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = child.Kill()
+	_ = child.Release()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		alive, e := processAlive(ready.PID)
+		if e != nil || !alive {
+			break
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(30 * time.Millisecond)
+	}
+	if _, err = readReference(p.Layout); !os.IsNotExist(err) {
+		t.Fatalf("helper modified the installation before parent exit: %v", err)
+	}
+}

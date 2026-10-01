@@ -45,6 +45,12 @@ type health struct {
 	Version string `json:"version"`
 	PID     int    `json:"pid"`
 }
+type helperReady struct {
+	Nonce  string `json:"nonce"`
+	PID    int    `json:"pid"`
+	Parent int    `json:"parent"`
+	Mode   string `json:"mode"`
+}
 
 func randomID() (string, error) {
 	var b [16]byte
@@ -249,10 +255,34 @@ func (p *plan) spawn(mode string) error {
 	command.Env = cleanHealthEnv(os.Environ())
 	command.Dir = planDirectory(p.DataRoot, p.ID)
 	hideHelper(command)
+	if err = root.Remove("helper-ready.json"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	if err = command.Start(); err != nil {
 		return err
 	}
-	return command.Process.Release()
+	// Keep the GUI alive until the helper has authenticated its inputs and can wait for it.
+	done := make(chan error, 1)
+	go func() { done <- command.Wait() }()
+	timer := time.NewTimer(15 * time.Second)
+	defer timer.Stop()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-done:
+			return errors.New("update helper exited before confirming readiness")
+		case <-timer.C:
+			_ = command.Process.Kill()
+			<-done
+			return errors.New("update helper did not become ready; the desktop was kept open")
+		case <-ticker.C:
+			var ready helperReady
+			if jsonRead(root, "helper-ready.json", &ready) == nil && ready.Nonce == p.Nonce && ready.PID == command.Process.Pid && ready.Parent == os.Getpid() && ready.Mode == mode {
+				return nil
+			}
+		}
+	}
 }
 func (p *plan) startGUI(probe bool) (*exec.Cmd, error) {
 	cmd := exec.Command(filepath.Join(p.Layout.Root, filepath.FromSlash(p.Layout.GUI)))
@@ -337,6 +367,18 @@ func RunHelper(args []string) error {
 		return err
 	}
 	pid, err := strconv.Atoi(args[4])
+	if err != nil {
+		return err
+	}
+	if pid <= 0 || pid == os.Getpid() {
+		return errors.New("invalid updater parent")
+	}
+	planRoot, err := os.OpenRoot(planDirectory(p.DataRoot, p.ID))
+	if err != nil {
+		return err
+	}
+	err = jsonWrite(planRoot, "helper-ready.json", helperReady{Nonce: p.Nonce, PID: os.Getpid(), Parent: pid, Mode: mode})
+	planRoot.Close()
 	if err != nil {
 		return err
 	}

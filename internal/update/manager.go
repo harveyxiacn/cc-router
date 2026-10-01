@@ -324,6 +324,12 @@ func (m *Manager) Apply() error {
 	if m.prepared == nil {
 		return errors.New("no verified update has been downloaded")
 	}
+	if _, err := m.prepared.verify(true); err != nil {
+		return err
+	}
+	if err := m.prepared.matchesOld(); err != nil {
+		return err
+	}
 	if err := m.prepared.spawn("install"); err != nil {
 		return err
 	}
