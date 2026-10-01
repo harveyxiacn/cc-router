@@ -1,0 +1,12 @@
+/.tools/
+/dist/
+/.scratch/
+/.cc-router/
+/CC_Router_Project_Plan.docx
+*.exe
+*.test
+coverage.out
+.env
+.env.*
+!.env.example
+.credentials.json
