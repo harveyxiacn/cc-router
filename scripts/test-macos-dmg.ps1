@@ -24,7 +24,7 @@ try {
     $expectedCpu = if ($Architecture -eq 'amd64') { 'x86_64' } else { 'arm64' }
     foreach ($binary in @('cc-router-desktop', 'cc-router')) {
         $path = Join-Path $bundles[0].FullName "Contents/MacOS/$binary"
-        & /usr/bin/test -x $path
+        & /bin/test -x $path
         if ($LASTEXITCODE -ne 0) { throw "DMG executable mode missing: $binary" }
         $description = & file -b $path
         if ($LASTEXITCODE -ne 0 -or $description -notmatch ('Mach-O.*' + $expectedCpu)) { throw "DMG CPU mismatch: $binary ($description)" }
@@ -32,6 +32,8 @@ try {
     foreach ($document in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'compatibility.md', 'DESKTOP.md', 'distribution.md')) {
         if (-not (Test-Path -LiteralPath (Join-Path $bundles[0].FullName "Contents/Resources/Documentation/$document") -PathType Leaf)) { throw "App is missing bundled documentation: $document" }
     }
+    $minimumVersion = & /usr/bin/plutil -extract LSMinimumSystemVersion raw -o - (Join-Path $bundles[0].FullName 'Contents/Info.plist')
+    if ($LASTEXITCODE -ne 0 -or $minimumVersion -ne '13.0') { throw 'App must declare macOS 13.0 as its minimum system version' }
     & /usr/bin/codesign --verify --deep --strict --verbose=2 $bundles[0].FullName
     if ($LASTEXITCODE -ne 0) { throw 'Mounted app ad-hoc signature verification failed' }
     Write-Output "DMG layout, Applications link, $Architecture executable and ad-hoc integrity checks passed."

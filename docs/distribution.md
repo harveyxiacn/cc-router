@@ -43,6 +43,10 @@ installation in the setup destination is refused unless it was created by setup.
 
 ## macOS
 
+This release requires macOS 13 or later on both Intel and Apple Silicon, matching
+the Go 1.27 toolchain's minimum target. The packaged app declares that minimum in
+`Info.plist`; CI checks the value inside the mounted disk image.
+
 Choose the DMG matching your CPU. Open it, drag the `.app` to Applications, then
 eject the image. The companion CLI is inside `Contents/MacOS/cc-router`; license,
 notices and documentation are inside `Contents/Resources/Documentation` and also

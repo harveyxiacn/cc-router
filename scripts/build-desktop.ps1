@@ -67,11 +67,14 @@ try {
             Copy-Item -LiteralPath (Join-Path $stage $file) -Destination $bundleDocumentation -Force
         }
         Copy-Item -LiteralPath 'docs/distribution.md' -Destination $bundleDocumentation -Force
+        $appPath = Join-Path $stage $bundles[0].Name
+        # Go 1.27 targets macOS 13; replace Wails' older template declaration.
+        & /usr/bin/plutil -replace LSMinimumSystemVersion -string '13.0' (Join-Path $appPath 'Contents/Info.plist')
+        if ($LASTEXITCODE -ne 0) { throw 'macOS minimum system version declaration failed' }
         # Wails ad-hoc signs the main bundle before we add the companion/docs.
         # Seal the final layout; '-' provides integrity, not Developer ID trust.
         & /usr/bin/codesign --force --sign - $cliPath
         if ($LASTEXITCODE -ne 0) { throw 'Companion ad-hoc signing failed' }
-        $appPath = Join-Path $stage $bundles[0].Name
         & /usr/bin/codesign --force --sign - $appPath
         if ($LASTEXITCODE -ne 0) { throw 'Final app ad-hoc signing failed' }
         & /usr/bin/codesign --verify --deep --strict --verbose=2 $appPath
