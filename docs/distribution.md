@@ -63,7 +63,10 @@ lease and recovery journal.
 ## Download trust and OTA signing
 
 These preview setup executables and DMGs do not require a paid OS code-signing
-certificate to build or publish. Windows may show an unknown publisher or
+certificate to build or publish. macOS app bundles use an ad-hoc signature after
+all binaries and documentation are staged, and native CI checks its integrity.
+Ad-hoc signing does not identify a trusted publisher, provide Developer ID trust,
+or notarize the app. Windows may show an unknown publisher or
 SmartScreen warning; macOS Gatekeeper may block an unsigned or unnotarized app.
 Use the explicit per-app approval controls described by
 [Microsoft](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)
@@ -78,7 +81,7 @@ existing portable archives. Ed25519 signing does not provide Windows Authenticod
 macOS Developer ID signing or Apple notarization.
 
 Real certificate signing/notarization is a separate maintainer option. It has not
-been tested by this unsigned packaging workflow. In particular, the current
+been tested by this preview packaging workflow. In particular, the current
 file-based macOS OTA transaction does not support replacing a Developer ID signed
 bundle: whole-bundle update/recovery must be implemented before advertising that
 combination. See [updates.md](updates.md) for OTA guarantees and release signing.

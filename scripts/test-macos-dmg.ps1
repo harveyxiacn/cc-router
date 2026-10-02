@@ -17,7 +17,8 @@ try {
     if ($bundles.Count -ne 1) { throw 'DMG must contain exactly one app bundle' }
     $expected = @($bundles[0].Name, 'Applications', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'compatibility.md', 'DESKTOP.md', 'distribution.md')
     $actual = @(Get-ChildItem -LiteralPath $mount | ForEach-Object Name)
-    if (Compare-Object $expected $actual) { throw 'DMG contains unexpected or missing visible root files' }
+    $difference = @(Compare-Object $expected $actual)
+    if ($difference.Count) { throw ("DMG contains unexpected or missing visible root files: " + (($difference | ForEach-Object { "$($_.SideIndicator) $($_.InputObject)" }) -join ', ')) }
     $applicationsTarget = & readlink (Join-Path $mount 'Applications')
     if ($LASTEXITCODE -ne 0 -or $applicationsTarget -ne '/Applications') { throw 'DMG Applications link is incorrect' }
     $expectedCpu = if ($Architecture -eq 'amd64') { 'x86_64' } else { 'arm64' }
@@ -31,12 +32,19 @@ try {
     foreach ($document in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'compatibility.md', 'DESKTOP.md', 'distribution.md')) {
         if (-not (Test-Path -LiteralPath (Join-Path $bundles[0].FullName "Contents/Resources/Documentation/$document") -PathType Leaf)) { throw "App is missing bundled documentation: $document" }
     }
-    Write-Output "DMG layout, Applications link and $Architecture executable checks passed."
+    & /usr/bin/codesign --verify --deep --strict --verbose=2 $bundles[0].FullName
+    if ($LASTEXITCODE -ne 0) { throw 'Mounted app ad-hoc signature verification failed' }
+    Write-Output "DMG layout, Applications link, $Architecture executable and ad-hoc integrity checks passed."
+} catch {
+    # Print the inspection error before cleanup so a detach/cleanup failure cannot
+    # conceal the failed layout, CPU or executable-mode assertion in CI logs.
+    Write-Error -ErrorRecord $_ -ErrorAction Continue
+    throw
 } finally {
     if ($attached) {
         & hdiutil detach $mount
         if ($LASTEXITCODE -ne 0) { throw 'Could not detach DMG inspection mount' }
     }
     # No recursive deletion; this is the exact empty mount directory just created.
-    Remove-Item -LiteralPath $mount
+    Remove-Item -LiteralPath $mount -Force
 }

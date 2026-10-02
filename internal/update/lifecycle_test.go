@@ -10,6 +10,10 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,14 +33,52 @@ func TestMain(m *testing.M) {
 	if os.Getenv("CCR_TEST_OTA_PROCESS") == "1" {
 		releasePublicKey = os.Getenv("CCR_TEST_OTA_PUBLIC")
 		if len(os.Args) > 1 && os.Args[1] == "internal-update" {
-			if err := RunHelper(os.Args[2:]); err != nil {
+			if err := runTestOTAHelper(os.Args[2:]); err != nil {
 				os.Exit(2)
 			}
 			os.Exit(0)
 		}
 		data := os.Getenv("CCR_HOME")
 		if os.Getenv("CCR_UPDATE_ID") == "" {
-			_ = os.WriteFile(filepath.Join(data, "restarted.txt"), []byte("old desktop restarted"), 0600)
+			if err := os.WriteFile(filepath.Join(data, "restarted.txt"), []byte("old desktop restarted"), 0600); err != nil {
+				os.Exit(11)
+			}
+			if address := os.Getenv("CCR_TEST_OTA_RESTART_NOTIFY_ADDR"); address != "" {
+				connection, err := net.DialTimeout("tcp", address, 5*time.Second)
+				if err != nil {
+					os.Exit(8)
+				}
+				_ = connection.SetDeadline(time.Now().Add(10 * time.Second))
+				if err := json.NewEncoder(connection).Encode(os.Getpid()); err != nil {
+					connection.Close()
+					os.Exit(9)
+				}
+				// Keep this process alive until its direct parent has obtained a
+				// process handle, including on Windows, before allowing exit.
+				if _, err := io.Copy(io.Discard, connection); err != nil {
+					connection.Close()
+					os.Exit(10)
+				}
+				connection.Close()
+			}
+			// A test-owned exit barrier exposes helpers that return while their
+			// restarted GUI can still be running during TempDir cleanup.
+			if address := os.Getenv("CCR_TEST_OTA_RESTART_EXIT_ADDR"); address != "" {
+				connection, err := net.DialTimeout("tcp", address, 5*time.Second)
+				if err != nil {
+					os.Exit(5)
+				}
+				_ = connection.SetDeadline(time.Now().Add(10 * time.Second))
+				if err := json.NewEncoder(connection).Encode(os.Getpid()); err != nil {
+					connection.Close()
+					os.Exit(6)
+				}
+				if _, err := io.Copy(io.Discard, connection); err != nil {
+					connection.Close()
+					os.Exit(7)
+				}
+				connection.Close()
+			}
 			os.Exit(0)
 		}
 		exe, _ := os.Executable()
@@ -143,6 +185,9 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 			}
 			cmd := exec.Command(helper, "internal-update", data, p.ID, p.Nonce, "install", itoaPID(parent.Process.Pid))
 			cmd.Env = append(os.Environ(), "CCR_TEST_OTA_PROCESS=1", "CCR_TEST_OTA_PUBLIC="+releasePublicKey)
+			if broken {
+				cmd.Env = append(cmd.Env, "CCR_TEST_OTA_AWAIT_RESTART=1")
+			}
 			err = cmd.Run()
 			if !broken && err != nil {
 				t.Fatalf("helper failed: %v", err)
@@ -180,15 +225,8 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 				t.Fatalf("documentation=%q", b)
 			}
 			if broken {
-				deadline := time.Now().Add(3 * time.Second)
-				for {
-					if _, err = os.Stat(filepath.Join(data, "restarted.txt")); err == nil {
-						break
-					}
-					if time.Now().After(deadline) {
-						t.Fatal("old GUI was not restarted")
-					}
-					time.Sleep(30 * time.Millisecond)
+				if restarted, err := os.ReadFile(filepath.Join(data, "restarted.txt")); err != nil || string(restarted) != "old desktop restarted" {
+					t.Fatalf("old GUI did not finish restarting: %q, %v", restarted, err)
 				}
 			} else {
 				var h health
@@ -220,7 +258,44 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 				}
 				rollback := exec.Command(helper, "internal-update", data, p.ID, p.Nonce, "rollback", itoaPID(parent.Process.Pid))
 				rollback.Env = cmd.Env
-				if err = rollback.Run(); err != nil {
+				// Hold the restarted GUI at an explicit exit barrier. The helper
+				// must retain ownership and wait for this child before returning.
+				restartExit, err := net.Listen("tcp", "127.0.0.1:0")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer restartExit.Close()
+				_ = restartExit.(*net.TCPListener).SetDeadline(time.Now().Add(10 * time.Second))
+				rollback.Env = append(rollback.Env, "CCR_TEST_OTA_AWAIT_RESTART=1", "CCR_TEST_OTA_RESTART_EXIT_ADDR="+restartExit.Addr().String())
+				if err := rollback.Start(); err != nil {
+					t.Fatal(err)
+				}
+				rollbackDone := make(chan error, 1)
+				go func() { rollbackDone <- rollback.Wait() }()
+				connection, err := restartExit.Accept()
+				if err != nil {
+					t.Fatal("restarted GUI did not enter exit barrier:", err)
+				}
+				defer connection.Close()
+				_ = connection.SetDeadline(time.Now().Add(10 * time.Second))
+				var restartedPID int
+				if err := json.NewDecoder(connection).Decode(&restartedPID); err != nil {
+					t.Fatal(err)
+				}
+				select {
+				case err := <-rollbackDone:
+					t.Fatalf("rollback helper returned before restarted GUI %d exited: %v", restartedPID, err)
+				case <-time.After(500 * time.Millisecond):
+				}
+				if err := connection.Close(); err != nil {
+					t.Fatal(err)
+				}
+				select {
+				case err = <-rollbackDone:
+				case <-time.After(10 * time.Second):
+					t.Fatal("rollback helper did not wait for restarted GUI exit")
+				}
+				if err != nil {
 					t.Fatalf("manual rollback failed: %v", err)
 				}
 				restored, err := openTransaction(install, p.ID)
@@ -231,9 +306,60 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 				if string(b) != "old documentation" {
 					t.Fatal("manual rollback did not restore previous files")
 				}
+				if restarted, err := os.ReadFile(filepath.Join(data, "restarted.txt")); err != nil || string(restarted) != "old desktop restarted" {
+					t.Fatalf("rollback GUI did not finish restarting: %q, %v", restarted, err)
+				}
 			}
 		})
 	}
+}
+
+// The production helper intentionally restarts the desktop asynchronously. The
+// test helper remains the restarted fixture's direct parent and reaps it before
+// exiting, so the enclosing test cannot clean TempDir while that child runs.
+func runTestOTAHelper(args []string) error {
+	if os.Getenv("CCR_TEST_OTA_AWAIT_RESTART") != "1" {
+		return RunHelper(args)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+	if err := os.Setenv("CCR_TEST_OTA_RESTART_NOTIFY_ADDR", listener.Addr().String()); err != nil {
+		return err
+	}
+	result := RunHelper(args)
+	_ = listener.(*net.TCPListener).SetDeadline(time.Now().Add(10 * time.Second))
+	connection, err := listener.Accept()
+	if err != nil {
+		return errors.Join(result, fmt.Errorf("restarted GUI did not report its PID: %w", err))
+	}
+	defer connection.Close()
+	_ = connection.SetDeadline(time.Now().Add(10 * time.Second))
+	var pid int
+	if err := json.NewDecoder(connection).Decode(&pid); err != nil {
+		return errors.Join(result, err)
+	}
+	if pid <= 0 || pid == os.Getpid() {
+		return errors.Join(result, errors.New("invalid restarted fixture PID"))
+	}
+	child, err := os.FindProcess(pid)
+	if err != nil {
+		return errors.Join(result, err)
+	}
+	if err := connection.Close(); err != nil {
+		child.Release()
+		return errors.Join(result, err)
+	}
+	status, err := child.Wait()
+	if err != nil {
+		return errors.Join(result, fmt.Errorf("cannot reap restarted GUI: %w", err))
+	}
+	if !status.Success() {
+		return errors.Join(result, errors.New("restarted GUI fixture failed"))
+	}
+	return result
 }
 
 func itoaPID(n int) string { return strconv.Itoa(n) }

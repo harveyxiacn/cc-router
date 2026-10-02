@@ -67,6 +67,15 @@ try {
             Copy-Item -LiteralPath (Join-Path $stage $file) -Destination $bundleDocumentation -Force
         }
         Copy-Item -LiteralPath 'docs/distribution.md' -Destination $bundleDocumentation -Force
+        # Wails ad-hoc signs the main bundle before we add the companion/docs.
+        # Seal the final layout; '-' provides integrity, not Developer ID trust.
+        & /usr/bin/codesign --force --sign - $cliPath
+        if ($LASTEXITCODE -ne 0) { throw 'Companion ad-hoc signing failed' }
+        $appPath = Join-Path $stage $bundles[0].Name
+        & /usr/bin/codesign --force --sign - $appPath
+        if ($LASTEXITCODE -ne 0) { throw 'Final app ad-hoc signing failed' }
+        & /usr/bin/codesign --verify --deep --strict --verbose=2 $appPath
+        if ($LASTEXITCODE -ne 0) { throw 'Final app ad-hoc signature verification failed' }
     }
     if ($targetOS -eq 'windows') {
         $archive = Join-Path $projectRoot "dist/cc-router-desktop-$targetOS-$targetArch.zip"

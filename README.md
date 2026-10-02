@@ -6,7 +6,7 @@
 
 ## 安装
 
-先按[官方说明](https://code.claude.com/docs/en/setup)安装 Claude Code（本项目要求 >=2.1.268）。从本仓库 [Releases](https://github.com/harveyxiacn/cc-router/releases) 下载对应平台安装包或便携压缩包，并核对 SHA256SUMS。仅使用 CLI 时，解压后只把 `cc-router`（Windows 为 `cc-router.exe`）复制到 PATH 中的目录；Linux/macOS 先执行 `chmod +x cc-router`。已发布的 alpha.1 CLI 包还带有可选兼容别名 `ccr`，请勿一并复制或将整个解压目录加入 PATH，以免启用冲突命令。OTA 更新清单使用 Ed25519 签名；本版尚无 Windows Authenticode 或 macOS 签名/公证，这两类签名的用途不同。
+先按[官方说明](https://code.claude.com/docs/en/setup)安装 Claude Code（本项目要求 >=2.1.268）。从本仓库 [Releases](https://github.com/harveyxiacn/cc-router/releases) 下载对应平台安装包或便携压缩包，并核对 SHA256SUMS。仅使用 CLI 时，解压后只把 `cc-router`（Windows 为 `cc-router.exe`）复制到 PATH 中的目录；Linux/macOS 先执行 `chmod +x cc-router`。已发布的 alpha.1 CLI 包还带有可选兼容别名 `ccr`，请勿一并复制或将整个解压目录加入 PATH，以免启用冲突命令。OTA 更新清单使用 Ed25519 签名；本版尚无 Windows Authenticode 或 macOS Developer ID 签名/公证，这两类签名的用途不同。
 
 0.2 的桌面构建另外生成 Windows `-setup.exe` 用户安装包与 macOS `.dmg`。Windows 安装器包含 GUI 和配套 CLI、快捷方式与卸载入口；macOS 按 Intel/Apple Silicon 选择 DMG 后复制应用。ZIP/tar.gz 保留供便携安装与 OTA 使用，安装包不替代更新清单的签名验证。系统代码签名是独立选项，未签名版本可能显示系统警告。详见[安装与发行包说明](docs/distribution.md)。
 

@@ -42,7 +42,7 @@ no GitHub token or account credentials. Manual checks work with automatic update
 The cache is in `<data-root>/updates`; backups and the installation lock are next
 to the portable app. Keep these files until the update is resolved. Manual rollback
 checks that installed files still match the completed transaction before restoring
-them. Restoring app binaries does not downgrade account data; this alpha only uses
+them. Restoring app binaries does not downgrade account data; this beta still uses
 metadata schema v1. Future schema changes need an explicit migration/rollback policy.
 
 ## Supported scope
@@ -50,8 +50,9 @@ metadata schema v1. Future schema changes need an explicit migration/rollback po
 - Writable, fixed-location portable installations on Windows, Linux and macOS.
   Read-only directories, package-manager installations and unknown layouts require
   manual replacement. The updater does not request administrator/root privileges.
-- macOS alpha bundles are unsigned. Updates replace listed files and retain older
-  unlisted resources. Signed/notarized bundle updates require a complete bundle
+- macOS preview bundles use ad-hoc integrity signatures, without Developer ID
+  signing or notarization. Updates replace listed files and retain older
+  unlisted resources. Developer ID/notarized bundle updates require a complete bundle
   replacement strategy before those distributions can be supported.
 - A startup health check verifies local UI readiness, not real account login,
   terminal interaction or every application feature. Those need native acceptance.
