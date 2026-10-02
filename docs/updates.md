@@ -23,7 +23,9 @@ no GitHub token or account credentials. Manual checks work with automatic update
    failure keeps the GUI open. It obtains an exclusive installation lease and independently
    verifies the manifest/archive again. GUI and ordinary companion CLI processes
    hold shared installation leases, including while a managed session runs.
-6. Back up every replaced file before mutating the installation. Record progress
+6. Save a validated local account/project configuration backup with `pre-update`
+   provenance. If metadata cannot be preserved, keep the old application and stop.
+   Back up every replaced file before mutating the installation. Record progress
    under `.cc-router-update-work`, then replace the GUI, companion CLI and shipped
    documentation/resources. Account profiles, metadata, usage and handoffs are
    not update targets.

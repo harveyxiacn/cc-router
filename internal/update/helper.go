@@ -457,6 +457,16 @@ func RunHelper(args []string) error {
 		restart()
 		return err
 	}
+	metadata, err := state.Open(p.DataRoot)
+	if err == nil {
+		_, err = metadata.CreateUpdateBackup()
+	}
+	if err != nil {
+		_ = p.result(outcome{Phase: "error", Error: "cannot preserve tool configuration before updating"})
+		p.suppressAutomaticRetry()
+		restart()
+		return errors.New("cannot preserve tool configuration before updating")
+	}
 	t, err := beginTransaction(p.Layout.Root, p.ID, stage, files)
 	if err != nil {
 		_ = p.result(outcome{Phase: "error", Error: err.Error()})

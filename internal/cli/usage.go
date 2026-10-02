@@ -16,6 +16,9 @@ import (
 )
 
 func (a *App) usage(args []string) (int, error) {
+	if len(args) > 0 && (args[0] == "show" || args[0] == "record" || args[0] == "clear") {
+		return a.manualUsage(args)
+	}
 	if len(args) == 1 && args[0] == "config" {
 		fmt.Fprintln(a.Out, `{"statusLine":{"type":"command","command":"cc-router usage statusline"}}`)
 		return 0, nil

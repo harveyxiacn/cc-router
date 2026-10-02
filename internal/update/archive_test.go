@@ -171,3 +171,23 @@ func TestExtractMacApplicationTree(t *testing.T) {
 		t.Fatal("accepted parent-file conflict")
 	}
 }
+
+func TestMacUpdatesCannotReplaceFilesOutsideTheirBundle(t *testing.T) {
+	gui, cli := "CC Router.app/Contents/MacOS/cc-router-desktop", "CC Router.app/Contents/MacOS/cc-router"
+	for _, doc := range []string{"README.md", "LICENSE", "DESKTOP.md", "THIRD_PARTY_NOTICES.txt"} {
+		p, a := zipFixture(t, []archiveEntry{{gui, "gui", 0755}, {cli, "cli", 0755}, {doc, "shared application folder file", 0644}})
+		a.OS = "darwin"
+		a.GUI = gui
+		a.CLI = cli
+		if _, err := Extract(p, t.TempDir(), a); err == nil {
+			t.Fatalf("mac update accepted shared parent file %s", doc)
+		}
+	}
+	p, a := zipFixture(t, []archiveEntry{{gui, "gui", 0755}, {cli, "cli", 0755}, {"CC Router.app/Contents/Resources/Documentation/README.md", "owned documentation", 0644}})
+	a.OS = "darwin"
+	a.GUI = gui
+	a.CLI = cli
+	if _, err := Extract(p, t.TempDir(), a); err != nil {
+		t.Fatal(err)
+	}
+}

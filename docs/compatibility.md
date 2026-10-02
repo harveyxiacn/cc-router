@@ -1,6 +1,11 @@
 # Compatibility and release gates
 
-This is an alpha, not completion of the original plan's 1.0 acceptance checklist.
+The 0.2 beta adds planned product modules. It is not completion of the original plan's real-account/real-device acceptance checklist. OS code signing is an optional distribution improvement, not a prerequisite for installer/DMG downloads or signed-manifest OTA.
+
+Beta release assets must come from a successful CI run for that version's commit.
+The exact commit, CI run and published checksums are recorded on the
+[0.2.0-beta.1 release](https://github.com/harveyxiacn/cc-router/releases/tag/v0.2.0-beta.1);
+the configured checks are visible in the [CI workflow](https://github.com/harveyxiacn/cc-router/actions/workflows/ci.yml).
 
 ## Contracts
 
@@ -13,24 +18,26 @@ This is an alpha, not completion of the original plan's 1.0 acceptance checklist
 
 | Check | Status |
 | --- | --- |
-| Windows core, desktop service and CLI fixture-process tests | Passed locally (`go test -count=1 ./...`) |
-| Go vet and core source vulnerability scan | Passed; govulncheck reports no known vulnerabilities |
-| Windows/Linux/macOS CLI cross-builds | Passed for amd64 and arm64 on all three systems |
-| GitHub Actions core checks and six CLI builds | Passed, including updater lifecycle, Linux race and vulnerability checks, on [commit a5756e1](https://github.com/harveyxiacn/cc-router/actions/runs/36896638815) |
-| Windows desktop production build | Passed locally with Wails 2.16.0; native dialog/terminal acceptance remains separate |
-| Frontend unit and browser interaction tests | 18 frontend tests passed; browser fixture covers login, handoff and updates |
-| Signed updater helper lifecycle | Three-OS fixture processes: successful startup, failed-startup rollback/restart and manual rollback; no real accounts used |
-| Desktop CI on all three OSes | Native test/build matrix; release artifacts require a passing [CI run](https://github.com/harveyxiacn/cc-router/actions/workflows/ci.yml) for the release commit |
-| Desktop release architectures | Windows amd64, Linux amd64 and macOS arm64; **macOS Intel desktop package not yet provided**. Standalone CLI packages exist for amd64 and arm64 on all three OSes |
+| Windows core, desktop service and CLI fixture-process tests | Passed locally in the beta worktree; release-commit CI must also pass |
+| Compiled CLI manual/backup flow | Isolated temporary-data record, backup, rename, reviewed restore and clear loop passed; no account login used |
+| Go vet and source vulnerability checks | Local checks passed; release-commit CI must also pass |
+| Windows/Linux/macOS CLI cross-builds | Six-target build configured (amd64 and arm64 on each OS); publish only successful release-commit CI artifacts |
+| GitHub Actions core checks | Required for release: updater lifecycle, Linux race/vulnerability checks and repeated macOS lock regressions; earlier alpha results are not beta evidence |
+| Windows desktop production build | Built locally with Wails 2.16.0; native dialog/terminal acceptance remains separate |
+| Frontend unit and browser interaction tests | **27 frontend tests passed**, TypeScript/Vite build passed; browser fixture passed login onboarding, separate manual/official usage, backup creation/preview/reviewed restore, handoff conflicts and update controls |
+| Signed updater helper lifecycle | Fixture coverage for startup confirmation, failed-startup rollback/restart and manual rollback; release requires three-OS CI, no real accounts used |
+| Desktop CI and release architectures | Four native builds configured: Windows amd64, Linux amd64, macOS arm64 and **macOS amd64 (Intel)**. Release requires successful native build/installer smoke/DMG inspection; artifact availability is recorded on the release page |
+| Initial-install packages | Windows per-user setup EXE and both macOS DMGs implemented; release requires native CI. Linux uses the portable archive; installers/DMGs are separate from OTA ZIP/tar.gz payloads |
 | Windows symlink rejection runtime tests | Some tests skip when OS denies creating symlinks |
 | Two real Claude accounts per OS, restart persistence | **Not tested**; owner login required |
 | Real terminal Ctrl+C/resize/interactive prompts | **Not tested**; fixture process tests are narrower |
 | CachyOS native Bash/Zsh/Fish | **Not tested**; Ubuntu CI is not CachyOS acceptance |
 | macOS Keychain account isolation | Documented by upstream; **not verified on real accounts** |
 | Update manifest signature | Ed25519 verification and SHA-256 archive checks implemented |
-| Authenticode, macOS binary signing and notarization | **Not provided in alpha** |
+| Authenticode, macOS Developer ID signing and notarization | **Not provided for this beta**; optional maintainer work, not a gate for the selected unsigned EXE/DMG and Ed25519-signed OTA distribution |
 | Cross-account transcript-path resume | **Not implemented or validated** |
-| Original plan's manual quota and local limit records | **Not implemented**; current usage records come only from the official statusline |
+| Original plan's manual quota and local limit records | Implemented separately from official statusline observations, with source/time/expiry and explicit clear action |
+| Local configuration backup and restore | Implemented with stable-ID/project/default restoration, preview digest, pre-restore and pre-update backup, busy-session checks; schema v1 remains compatible |
 | Enterprise MDM/registry/cloud policy completeness | Conservative detection; no full policy-merging implementation |
 
 ## Before 1.0
@@ -45,7 +52,7 @@ concurrent thread/process regressions on macOS; lock files remain persistent.
 3. Test quota warnings with official statusline output; verify staleness and model-specific limits, then perform a manual handoff in a real project.
 4. Review managed settings detection against the pinned official version and managed environments; preserve organization policy.
 5. Validate restore/migration and uninstall preservation. Implement migration only when there is an actual second schema.
-6. Produce signed binaries, macOS notarization, checksums and a release-specific verification record.
+6. Produce checksums and a release-specific verification record. Optional Windows Authenticode/macOS notarization requires maintainer signing credentials; unsigned installer and DMG distribution remains supported as selected by the owner.
 
 ## Manual owner smoke test
 

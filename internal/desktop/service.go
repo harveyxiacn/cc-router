@@ -35,13 +35,15 @@ type Service struct {
 	updatesMu    sync.RWMutex
 }
 type AccountView struct {
-	ID         string          `json:"id"`
-	Name       string          `json:"name"`
-	Label      string          `json:"label"`
-	IsDefault  bool            `json:"isDefault"`
-	Active     bool            `json:"active"`
-	Usage      *usage.Snapshot `json:"usage"`
-	UsageError string          `json:"usageError,omitempty"`
+	ID               string              `json:"id"`
+	Name             string              `json:"name"`
+	Label            string              `json:"label"`
+	IsDefault        bool                `json:"isDefault"`
+	Active           bool                `json:"active"`
+	Usage            *usage.Snapshot     `json:"usage"`
+	UsageError       string              `json:"usageError,omitempty"`
+	ManualUsage      *usage.ManualRecord `json:"manualUsage"`
+	ManualUsageError string              `json:"manualUsageError,omitempty"`
 }
 type Snapshot struct {
 	Accounts     []AccountView `json:"accounts"`
@@ -107,6 +109,11 @@ func (s *Service) GetSnapshot(project string) (Snapshot, error) {
 		if err != nil {
 			v.Usage = nil
 			v.UsageError = "Local usage observation is unavailable"
+		}
+		v.ManualUsage, err = usage.LoadManual(s.Store, a.ID)
+		if err != nil {
+			v.ManualUsage = nil
+			v.ManualUsageError = "Local manual observation is unavailable"
 		}
 		if r.Bindings[result.Project] == a.ID {
 			result.BoundAccount = a.Name

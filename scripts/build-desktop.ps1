@@ -1,4 +1,10 @@
-param([string]$Go = 'go', [string]$Wails = 'wails', [string]$Version = '0.1.0-alpha.1')
+param(
+    [string]$Go = 'go',
+    [string]$Wails = 'wails',
+    [string]$Version = '0.2.0-beta.1',
+    [string]$MakeNsis = 'makensis',
+    [switch]$SkipInstallers
+)
 $ErrorActionPreference = 'Stop'
 if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw 'Invalid release version' }
 $projectRoot = Split-Path $PSScriptRoot -Parent
@@ -9,6 +15,7 @@ Push-Location -LiteralPath $projectRoot
 try {
     $targetOS = (& $Go env GOOS).Trim()
     $targetArch = (& $Go env GOARCH).Trim()
+    if ($LASTEXITCODE -ne 0 -or $targetOS -notmatch '^(windows|darwin|linux)$' -or $targetArch -notmatch '^(amd64|arm64)$') { throw 'Unsupported desktop target' }
     $env:GOFLAGS = '-buildvcs=false'
     $configuration = [System.Text.Encoding]::UTF8.GetString($originalConfiguration) | ConvertFrom-Json
     if ($null -eq $configuration.info) {
@@ -26,6 +33,17 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed' }
     } finally { Pop-Location }
     $stage = Join-Path $projectRoot "dist/desktop-$targetOS-$targetArch"
+    # Rebuilding cannot carry stale binaries, update locks or loose data into OTA.
+    if (Test-Path -LiteralPath $stage) {
+        $cleanup = [System.IO.Path]::GetFullPath($stage)
+        $distRoot = [System.IO.Path]::GetFullPath((Join-Path $projectRoot 'dist'))
+        if ((Get-Item -LiteralPath $distRoot).Attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw 'Desktop output directory cannot be a link' }
+        $boundary = $distRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $cleanup.StartsWith($boundary, [System.StringComparison]::OrdinalIgnoreCase) -or [System.IO.Path]::GetFileName($cleanup) -notmatch '^desktop-(windows|darwin|linux)-(amd64|arm64)$') { throw 'Unsafe desktop staging path' }
+        $existingStage = Get-Item -LiteralPath $cleanup
+        if ($existingStage.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw 'Desktop staging directory cannot be a link' }
+        Remove-Item -LiteralPath $cleanup -Recurse -Force
+    }
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
     if ($targetOS -eq 'darwin') {
         $bundles = @(Get-ChildItem -LiteralPath 'desktop/build/bin' -Directory -Filter '*.app')
@@ -41,16 +59,36 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Companion CLI build failed' }
     Copy-Item -LiteralPath 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'docs/compatibility.md' -Destination $stage -Force
     Copy-Item -LiteralPath 'desktop/README.md' -Destination (Join-Path $stage 'DESKTOP.md') -Force
+    if ($targetOS -eq 'darwin') {
+        # Applications is shared by unrelated apps. OTA writes only within ours.
+        $bundleDocumentation = Join-Path $stage ($bundles[0].Name + '/Contents/Resources/Documentation')
+        New-Item -ItemType Directory -Path $bundleDocumentation -Force | Out-Null
+        foreach ($file in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'compatibility.md', 'DESKTOP.md')) {
+            Copy-Item -LiteralPath (Join-Path $stage $file) -Destination $bundleDocumentation -Force
+        }
+        Copy-Item -LiteralPath 'docs/distribution.md' -Destination $bundleDocumentation -Force
+    }
     if ($targetOS -eq 'windows') {
         $archive = Join-Path $projectRoot "dist/cc-router-desktop-$targetOS-$targetArch.zip"
         Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $archive -Force
     } else {
         $archive = Join-Path $projectRoot "dist/cc-router-desktop-$targetOS-$targetArch.tar.gz"
-        & tar -czf $archive -C $stage .
+        if ($targetOS -eq 'darwin') {
+            & tar -czf $archive -C $stage $bundles[0].Name
+        } else {
+            & tar -czf $archive -C $stage .
+        }
         if ($LASTEXITCODE -ne 0) { throw 'Desktop archive failed' }
     }
     $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $([System.IO.Path]::GetFileName($archive))" | Set-Content -LiteralPath ($archive + '.sha256') -Encoding ascii
+    if (-not $SkipInstallers) {
+        if ($targetOS -eq 'windows') {
+            & (Join-Path $PSScriptRoot 'package-windows.ps1') -Stage $stage -Version $Version -Architecture $targetArch -MakeNsis $MakeNsis
+        } elseif ($targetOS -eq 'darwin') {
+            & (Join-Path $PSScriptRoot 'package-macos.ps1') -Stage $stage -Version $Version -Architecture $targetArch
+        }
+    }
     Write-Output "Built desktop $targetOS-$targetArch"
 } finally {
     [System.IO.File]::WriteAllBytes($configurationPath, $originalConfiguration)

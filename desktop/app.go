@@ -242,6 +242,49 @@ func (a *App) InstallUsage(name string, prepare, switchAt float64) error {
 	return s.InstallUsage(name, prepare, switchAt)
 }
 
+func (a *App) RecordManualUsage(name string, input service.ManualInput) error {
+	s, err := a.ready()
+	if err != nil {
+		return err
+	}
+	return s.RecordManualUsage(name, input)
+}
+func (a *App) ClearManualUsage(name string) error {
+	s, err := a.ready()
+	if err != nil {
+		return err
+	}
+	return s.ClearManualUsage(name)
+}
+func (a *App) ListBackups() ([]service.BackupInfo, error) {
+	s, err := a.ready()
+	if err != nil {
+		return nil, err
+	}
+	return s.ListBackups()
+}
+func (a *App) CreateBackup() (service.BackupInfo, error) {
+	s, err := a.ready()
+	if err != nil {
+		return service.BackupInfo{}, err
+	}
+	return s.CreateBackup()
+}
+func (a *App) PreviewBackup(id string) (service.BackupPreview, error) {
+	s, err := a.ready()
+	if err != nil {
+		return service.BackupPreview{}, err
+	}
+	return s.PreviewBackup(id)
+}
+func (a *App) RestoreBackup(id, digest string, reviewed bool) (service.BackupInfo, error) {
+	s, err := a.ready()
+	if err != nil {
+		return service.BackupInfo{}, err
+	}
+	return s.RestoreBackup(id, digest, reviewed)
+}
+
 func (a *App) ChooseDirectory() (string, error) {
 	if a.ctx == nil {
 		return "", errors.New("系统文件夹选择器尚未就绪，请重新打开桌面应用")

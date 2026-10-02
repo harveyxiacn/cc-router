@@ -256,6 +256,27 @@ func (s *Store) Load() (Registry, error) {
 	return r, err
 }
 
+// WithAccount validates a registered stable ID and runs a short metadata action
+// while holding the registry lock, without rewriting the registry or profiles.
+// The callback must not call methods that acquire the registry lock again.
+func (s *Store) WithAccount(id string, fn func(Account) error) error {
+	if !idPattern.MatchString(id) {
+		return errors.New("invalid account ID")
+	}
+	return s.locked(func(root *os.Root) error {
+		registry, err := readRegistry(root)
+		if err != nil {
+			return err
+		}
+		for _, account := range registry.Accounts {
+			if account.ID == id {
+				return fn(account)
+			}
+		}
+		return errors.New("account is no longer registered")
+	})
+}
+
 func (s *Store) Update(fn func(*Registry) error) error {
 	return s.locked(func(root *os.Root) error {
 		r, err := readRegistry(root)

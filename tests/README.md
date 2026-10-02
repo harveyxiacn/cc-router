@@ -13,7 +13,16 @@ python tests/run_gui_smoke.py
 The runner starts Vite directly on localhost:5173 and terminates its own process
 on exit. Screenshots and logs are ignored under `.scratch/`. Tests cover quota
 unknown/95% states, account creation, project binding, explicit handoff review,
-manual switching, and preservation of a draft after a save conflict.
+manual switching, and preservation of a draft after a save conflict. They also
+record a manual quota/limit observation without replacing the official report,
+create a local metadata backup, change the default account, then preview/review
+and restore the backup while preserving usage observations.
+
+Additional screenshots are `.scratch/gui-manual-form.png`, `gui-manual.png` and
+`gui-backups.png`. The fixture methods implement only test-local native IPC;
+production calls the actual Wails methods. Frontend unit tests separately cover
+expired manual records, failed-save draft preservation, corrupted-registry
+recovery, disabled damaged backups and restore/update blockers.
 
 The production Wails WebView2 loader intentionally clears browser debugging
 environment variables. Browser fixture tests do not prove native dialog or

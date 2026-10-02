@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -98,13 +98,31 @@ jobs:
           go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       - name: Install pinned Wails builder
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+      - name: Windows installer compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nsis --version=3.13.0 --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS installation failed' }
       - name: Build desktop and companion CLI
         shell: pwsh
         run: ./scripts/build-desktop.ps1
+      - name: Windows installer lifecycle smoke test
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test-windows-installer.ps1 -Installer ./dist/cc-router-desktop-windows-amd64-setup.exe
+      - name: macOS disk image inspection
+        if: runner.os == 'macOS'
+        shell: pwsh
+        run: |
+          $arch = (go env GOARCH).Trim()
+          ./scripts/test-macos-dmg.ps1 -Dmg "./dist/cc-router-desktop-darwin-$arch.dmg" -Architecture $arch
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cc-router-desktop-${{ runner.os }}-${{ runner.arch }}
           path: |
             dist/cc-router-desktop-*.zip
             dist/cc-router-desktop-*.tar.gz
+            dist/cc-router-desktop-*-setup.exe
+            dist/cc-router-desktop-*.dmg
             dist/cc-router-desktop-*.sha256

@@ -1,4 +1,4 @@
-param([string]$Go = 'go', [string]$Version = '0.1.0-alpha.1', [switch]$IncludeLegacyAlias)
+param([string]$Go = 'go', [string]$Version = '0.2.0-beta.1', [switch]$IncludeLegacyAlias)
 $ErrorActionPreference = 'Stop'
 if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw 'Invalid release version' }
 $projectRoot = Split-Path $PSScriptRoot -Parent

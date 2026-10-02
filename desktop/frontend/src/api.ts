@@ -5,7 +5,11 @@ export interface UsageSnapshot {
   sevenDay: UsageWindow | null
   source: 'official-statusline'
 }
-export interface Account { id: string; name: string; label: string; isDefault: boolean; active: boolean; usage: UsageSnapshot | null; usageError?: string }
+export interface ManualInput { fiveHour: UsageWindow | null; sevenDay: UsageWindow | null; limitedUntil: number }
+export interface ManualRecord extends ManualInput { observedAt: string; source: 'manual' }
+export interface BackupInfo { id: string; createdAt: string; reason: string; accountCount: number; bindingCount: number; restorable: boolean; error?: string }
+export interface BackupPreview { info: BackupInfo; accounts: { id: string; name: string; label: string }[]; defaultAccountId: string; projectBindings: Record<string, string>; digest: string }
+export interface Account { id: string; name: string; label: string; isDefault: boolean; active: boolean; usage: UsageSnapshot | null; usageError?: string; manualUsage?: ManualRecord | null; manualUsageError?: string }
 export interface Snapshot { accounts: Account[]; project: string; boundAccount: string; dataDir: string }
 export interface Identity { known: boolean; loggedIn: boolean; email: string; authMethod: string; version: string }
 export interface Finding { source: string; key: string; message: string; blocking: boolean }
@@ -33,6 +37,12 @@ export interface AppBinding {
   SaveHandoff(project: string, content: string, expectedDigest: string): Promise<Handoff>
   Launch(name: string, project: string, mode: 'run' | 'login' | 'switch', reviewed: boolean): Promise<void>
   InstallUsage(name: string, prepare: number, switchAt: number): Promise<void>
+  RecordManualUsage(name: string, input: ManualInput): Promise<void>
+  ClearManualUsage(name: string): Promise<void>
+  ListBackups(): Promise<BackupInfo[]>
+  CreateBackup(): Promise<BackupInfo>
+  PreviewBackup(id: string): Promise<BackupPreview>
+  RestoreBackup(id: string, digest: string, reviewed: boolean): Promise<BackupInfo>
   ExportMetadata(): Promise<string>
   ImportMetadata(): Promise<string>
   CheckForUpdates(): Promise<UpdateInfo>

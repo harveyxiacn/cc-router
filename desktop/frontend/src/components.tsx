@@ -26,7 +26,7 @@ export function Dialog({ title, description, children, busy = false, onClose }: 
   return <div className="dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !busy) onClose() }}>
     <div className="dialog" role="dialog" aria-modal="true" aria-labelledby={label} ref={container} onKeyDown={onKeyDown}>
       <button className="icon-button dialog-close" aria-label="关闭对话框" disabled={busy} onClick={onClose}><X size={18} /></button>
-      <span className="eyebrow">CC ROUTER / ACCOUNTS</span><h2 id={label}>{title}</h2>
+      <span className="eyebrow">CC ROUTER / WORKSPACE</span><h2 id={label}>{title}</h2>
       {description && <p className="muted dialog-description">{description}</p>}
       {children}
     </div>

@@ -78,18 +78,9 @@ func Save(s *state.Store, id string, snapshot Snapshot) error {
 	if err := validate(snapshot); err != nil {
 		return err
 	}
-	// Reuse the registry transaction lock for short metadata writes. The callback
-	// confirms this is a registered account; official profile files are not read.
-	return s.Update(func(r *state.Registry) error {
-		found := false
-		for _, a := range r.Accounts {
-			if a.ID == id {
-				found = true
-			}
-		}
-		if !found {
-			return errors.New("usage account is no longer registered")
-		}
+	// Hold the registry lock to validate the account and serialize metadata writes
+	// without rewriting accounts.json or inspecting official profile directories.
+	return s.WithAccount(id, func(state.Account) error {
 		root, err := os.OpenRoot(s.Root)
 		if err != nil {
 			return err

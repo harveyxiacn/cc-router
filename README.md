@@ -2,11 +2,13 @@
 
 本地 Claude Code 多账号启动器与项目交接工具，提供跨平台桌面 GUI 和独立 CLI。Go 核心搭配 Wails 2 + React 界面，使用未修改的官方 Claude Code 登录和运行。账号选择明确、官方配置独立、项目进度可交接。
 
-**当前为 0.1.0-alpha.1。** 自动化测试和可编译平台不等于真实账号验收；[兼容性记录](docs/compatibility.md) 列出验证边界。项目与 Anthropic 无隶属关系。
+**当前源码版本为 0.2.0-beta.1。** 已发布版本以 [Releases](https://github.com/harveyxiacn/cc-router/releases) 为准。自动化测试和可编译平台不等于真实账号验收；[兼容性记录](docs/compatibility.md) 列出验证边界。项目与 Anthropic 无隶属关系。
 
 ## 安装
 
-先按[官方说明](https://code.claude.com/docs/en/setup)安装 Claude Code（本项目要求 >=2.1.268）。从本仓库 [Releases](https://github.com/harveyxiacn/cc-router/releases) 下载对应平台压缩包，核对 SHA256SUMS 后解压。仅使用 CLI 时，只把 `cc-router`（Windows 为 `cc-router.exe`）复制到 PATH 中的目录；Linux/macOS 先执行 `chmod +x cc-router`。已发布的 alpha.1 CLI 包还带有可选兼容别名 `ccr`，请勿一并复制或将整个解压目录加入 PATH，以免启用冲突命令。OTA 更新清单使用 Ed25519 签名；Alpha 尚无 Windows Authenticode 或 macOS 签名/公证，这两类签名的用途不同。
+先按[官方说明](https://code.claude.com/docs/en/setup)安装 Claude Code（本项目要求 >=2.1.268）。从本仓库 [Releases](https://github.com/harveyxiacn/cc-router/releases) 下载对应平台安装包或便携压缩包，并核对 SHA256SUMS。仅使用 CLI 时，解压后只把 `cc-router`（Windows 为 `cc-router.exe`）复制到 PATH 中的目录；Linux/macOS 先执行 `chmod +x cc-router`。已发布的 alpha.1 CLI 包还带有可选兼容别名 `ccr`，请勿一并复制或将整个解压目录加入 PATH，以免启用冲突命令。OTA 更新清单使用 Ed25519 签名；本版尚无 Windows Authenticode 或 macOS 签名/公证，这两类签名的用途不同。
+
+0.2 的桌面构建另外生成 Windows `-setup.exe` 用户安装包与 macOS `.dmg`。Windows 安装器包含 GUI 和配套 CLI、快捷方式与卸载入口；macOS 按 Intel/Apple Silicon 选择 DMG 后复制应用。ZIP/tar.gz 保留供便携安装与 OTA 使用，安装包不替代更新清单的签名验证。系统代码签名是独立选项，未签名版本可能显示系统警告。详见[安装与发行包说明](docs/distribution.md)。
 
 源码构建需要 Go 1.26+，建议使用最新受支持补丁版本：
 
@@ -19,7 +21,7 @@ go build -buildvcs=false -o cc-router ./cmd/ccr
 
 ## 快速开始
 
-桌面用户下载 `cc-router-desktop-<平台>-<架构>`，解压到固定的本地目录，无需把桌面程序目录加入 PATH。Windows/Linux 的 `cc-router-desktop` 与配套 `cc-router` 需要放在一起；macOS 配套 CLI 位于应用包内。打开桌面应用后：
+桌面用户下载 `cc-router-desktop-<平台>-<架构>` 对应的安装包，或将便携包解压到固定的本地目录，无需把桌面程序目录加入 PATH。Windows/Linux 的 `cc-router-desktop` 与配套 `cc-router` 需要放在一起；macOS 配套 CLI 位于应用包内。打开桌面应用后：
 
 1. 添加账号，默认勾选“创建后打开官方登录”；官方 CLI 会引导打开浏览器完成认证。也可稍后点击账号卡片的“登录”，无需先选项目。
 2. 在账号的“更多操作”里安装额度状态栏；已有状态栏会保留并提示手动整合。
@@ -32,7 +34,7 @@ go build -buildvcs=false -o cc-router ./cmd/ccr
 
 桌面应用运行时默认在启动及每 6 小时检查公开 GitHub Releases，后台下载并校验签名和 SHA-256。没有未保存交接、弹窗或操作，且 30 秒无交互并已关闭受管 Claude 会话后，才会退出并安装；也可以在“环境诊断”的更新区手动重启更新或关闭自动更新。
 
-独立辅助进程同时更新 GUI 和配套 CLI，并保留上一版。新版需要在 45 秒内完成界面就绪确认；启动失败会自动恢复旧版并重新打开。成功升级后可手动回滚。更新不修改账号目录、交接文件或元数据。只支持可写的便携安装目录，详见[更新机制与发布流程](docs/updates.md)。
+独立辅助进程在安装前备份账号登记和项目绑定，再同时更新 GUI 和配套 CLI，并保留上一版。新版需要在 45 秒内完成界面就绪确认；启动失败会自动恢复旧版并重新打开。成功升级后可手动回滚。更新不替换账号目录、交接文件或元数据。安装位置需要可写，详见[更新机制与发布流程](docs/updates.md)。
 
 CLI 用户可以直接执行：
 
@@ -87,6 +89,24 @@ GUI 的“安装额度状态栏”会写入当前账号 ID 和可执行文件绝
 
 工具没有在后台登录其它账号查询余额。目标账号的额度未知时，启动后先用官方 `/usage` 核对，再开始大任务。
 
+### 手动额度与本地限额记录
+
+账号的“更多操作”提供“手动记录额度 / 本地限额”。可记录 5h、7d 的已用百分比与重置时间，或标记一个本地限额截止时间；至少填写一项，时间必须在未来一年内。记录由后端添加来源和记录时间，独立显示在官方用量下面，过期后明确标记。它只是个人提醒，不代表官方验证结果，也不阻止或自动轮换账号。
+
+CLI 同样支持查看、记录和清除。每次记录会完整替换此前的手动记录，清除不影响官方状态栏数据。例如 PowerShell 中：
+
+```powershell
+# 百分比和重置时间应以你实际核对的值为准。
+$reset = (Get-Date).AddHours(1).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+cc-router usage record personal --five-hour 95 --five-reset $reset
+cc-router usage show personal
+cc-router usage clear personal
+```
+
+7d 使用 `--seven-day` 与 `--seven-reset`，本地限额使用 `--limited-until`；日期统一接受带时区的 RFC3339。程序不读取对话来推算这些值。
+
+### 手动切换与交接
+
 收到提示后：
 
 1. 在旧会话让 Claude 总结目标、修改、检查结果和下一步；等工具执行完成，正常退出。
@@ -96,7 +116,23 @@ GUI 的“安装额度状态栏”会写入当前账号 ID 和可执行文件绝
 
 交接文件默认本地忽略，已有文件不会被覆盖。它是可能过期的背景资料，不得覆盖项目规则，也不会被工具当成命令执行。`switch` 始终开启新会话，不接受 `--resume`。`run -- --continue` 和 `--resume` 交给官方 CLI 处理；默认仍是所选账号自己的历史。跨账号完整 transcript 恢复尚未验证，工具不共享或复制历史目录。
 
-Alpha 对同一账号、同一目录各允许一个受管会话，冲突时拒绝启动，建议独立 worktree/其它账号。锁仅约束本工具启动的进程，无法约束直接运行 Claude 或其它编辑器。
+当前对同一账号、同一目录各允许一个受管会话，冲突时拒绝启动，建议独立 worktree/其它账号。锁仅约束本工具启动的进程，无法约束直接运行 Claude 或其它编辑器。
+
+## 本地配置备份与恢复
+
+“环境诊断”的备份区可创建、预览和恢复账号登记、默认选择及项目绑定。恢复需要审阅确认，并拒绝正在使用中的账号；恢复前自动保留当前配置，正常的恢复前备份可用于撤销。注册表损坏时，启动错误页仍提供备份恢复入口；损坏的原始注册表会被保留为不可直接恢复的诊断副本，超过 16 MiB 则拒绝自动覆盖。损坏的单个备份不会隐藏其他可用备份。
+
+```sh
+cc-router backup create
+cc-router backup list
+cc-router backup show BACKUP_ID
+# 先审阅 show 输出，再填入其中的 digest。
+cc-router backup restore BACKUP_ID --reviewed-digest SHA256
+```
+
+备份只保存在本地数据目录的 `backups` 中，绑定原数据目录并保留账号 ID；它包含本机项目路径，不适合公开分享，也不用于跨设备迁移。跨设备仍使用不含路径、ID 和凭据的 `export/import`，并重新登录。备份不读取、复制或回滚官方凭据和会话，也不备份项目文件、交接文件或用量缓存。
+
+当前注册表继续采用 schema v1，可直接使用 alpha.1 数据。未知 schema 会保留原文件并报错；没有引入无实际需要的数据版本迁移。未来变更 schema 时必须提供备份、迁移和与程序回滚配套的恢复策略。
 
 ## 数据与边界
 

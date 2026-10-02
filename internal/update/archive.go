@@ -204,14 +204,14 @@ func (e *extractor) allowed(name string, isDir bool) bool {
 	if name == e.asset.GUI || name == e.asset.CLI {
 		return !isDir
 	}
+	if e.asset.OS == "darwin" {
+		app := strings.Split(e.asset.GUI, "/")[0]
+		return name == app && isDir || strings.HasPrefix(name, app+"/Contents/") || name == app+"/Contents" && isDir
+	}
 	for _, doc := range []string{"LICENSE", "README.md", "DESKTOP.md", "compatibility.md", "THIRD_PARTY_NOTICES.txt"} {
 		if name == doc {
 			return !isDir
 		}
-	}
-	if e.asset.OS == "darwin" {
-		app := strings.Split(e.asset.GUI, "/")[0]
-		return name == app && isDir || strings.HasPrefix(name, app+"/Contents/") || name == app+"/Contents" && isDir
 	}
 	return false
 }

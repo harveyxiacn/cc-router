@@ -23,6 +23,17 @@ func main() {
 }
 
 func run(args []string, in io.Reader, out, errout io.Writer, interactive bool) int {
+	if len(args) > 0 && args[0] == "internal-installer-state" {
+		if len(args) != 2 {
+			fmt.Fprintln(errout, "cc-router: invalid internal installer arguments")
+			return 2
+		}
+		if err := update.RetireInstallerState(args[1]); err != nil {
+			fmt.Fprintln(errout, "cc-router installer:", err)
+			return 2
+		}
+		return 0
+	}
 	if len(args) > 0 && args[0] == "internal-update" {
 		if err := update.RunHelper(args[1:]); err != nil {
 			fmt.Fprintln(errout, "cc-router update:", err)
@@ -69,6 +80,9 @@ func run(args []string, in io.Reader, out, errout io.Writer, interactive bool) i
 		switch args[0] {
 		case "--help", "-h", "help", "--version", "version", "usage":
 			needsStore = false
+		}
+		if args[0] == "usage" && len(args) > 1 && (args[1] == "show" || args[1] == "record" || args[1] == "clear") {
+			needsStore = true
 		}
 	}
 	if needsStore {

@@ -63,6 +63,7 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 		t.Run(map[bool]string{false: "healthy", true: "failed-startup"}[broken], func(t *testing.T) {
 			install, data := t.TempDir(), t.TempDir()
 			gui, cli := "cc-router-desktop", "cc-router"
+			doc := "README.md"
 			if runtime.GOOS == "windows" {
 				gui += ".exe"
 				cli += ".exe"
@@ -70,6 +71,7 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 			if runtime.GOOS == "darwin" {
 				gui = "CC Router.app/Contents/MacOS/" + gui
 				cli = "CC Router.app/Contents/MacOS/" + cli
+				doc = "CC Router.app/Contents/Resources/Documentation/README.md"
 			}
 			binary, err := os.ReadFile(os.Args[0])
 			if err != nil {
@@ -77,10 +79,10 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 			}
 			fixtureFile(t, install, gui, string(binary))
 			fixtureFile(t, install, cli, string(binary))
-			fixtureFile(t, install, "README.md", "old documentation")
+			fixtureFile(t, install, doc, "old documentation")
 			var archive bytes.Buffer
 			zw := zip.NewWriter(&archive)
-			for name, contents := range map[string][]byte{gui: binary, cli: binary, "README.md": []byte("updated documentation")} {
+			for name, contents := range map[string][]byte{gui: binary, cli: binary, doc: []byte("updated documentation")} {
 				if broken && name == gui {
 					contents = []byte("invalid executable")
 				}
@@ -148,6 +150,14 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 			if broken && err == nil {
 				t.Fatal("invalid updated GUI accepted")
 			}
+			store, err := state.Open(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			backups, err := store.ListBackups()
+			if err != nil || len(backups) != 1 || backups[0].Reason != "pre-update" || !backups[0].Restorable {
+				t.Fatalf("metadata was not backed up before installation: %+v %v", backups, err)
+			}
 			txn, err := openTransaction(install, p.ID)
 			if err != nil {
 				t.Fatal(err)
@@ -165,7 +175,7 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 			if broken {
 				want = "old documentation"
 			}
-			b, _ := os.ReadFile(filepath.Join(install, "README.md"))
+			b, _ := os.ReadFile(filepath.Join(install, filepath.FromSlash(doc)))
 			if string(b) != want {
 				t.Fatalf("documentation=%q", b)
 			}
@@ -217,7 +227,7 @@ func TestHelperLifecycleInstallsAndRestoresAfterFailedStartup(t *testing.T) {
 				if err != nil || restored.Phase != "rolled-back" {
 					t.Fatalf("manual rollback state: %v %v", restored, err)
 				}
-				b, _ = os.ReadFile(filepath.Join(install, "README.md"))
+				b, _ = os.ReadFile(filepath.Join(install, filepath.FromSlash(doc)))
 				if string(b) != "old documentation" {
 					t.Fatal("manual rollback did not restore previous files")
 				}

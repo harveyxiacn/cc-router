@@ -12,7 +12,7 @@ import (
 	"github.com/harveyxiacn/cc-router/internal/state"
 )
 
-var Version = "0.1.0-alpha.1"
+var Version = "0.2.0-beta.1"
 
 const Help = `CC Router — local Claude Code profile launcher
 
@@ -35,6 +35,11 @@ Usage:
   cc-router import FILE|-
   cc-router usage statusline [--prepare-at 90] [--switch-at 95]
   cc-router usage config
+  cc-router usage show|clear NAME
+  cc-router usage record NAME [--five-hour PERCENT --five-reset RFC3339] [--seven-day PERCENT --seven-reset RFC3339] [--limited-until RFC3339]
+  cc-router backup create|list
+  cc-router backup show ID
+  cc-router backup restore ID --reviewed-digest SHA256
   cc-router version
 
 Selection: explicit name > current directory binding > global default > prompt.
@@ -84,6 +89,8 @@ func (a *App) Execute(args []string) (int, error) {
 		return 0, errors.New("account store is unavailable")
 	}
 	switch cmd {
+	case "backup":
+		return a.backup(rest)
 	case "init":
 		if len(rest) != 0 {
 			return 0, errors.New("usage: cc-router init")
